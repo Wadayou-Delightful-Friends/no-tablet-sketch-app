@@ -1,75 +1,45 @@
-# React + TypeScript + Vite
+# no-tablet-sketch-app
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+手元の端末（Controller）と描画用の画面（Display）を接続して絵を描くスケッチアプリ。
 
-Currently, two official plugins are available:
+## 画面構成
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| パス | 役割 |
+| --- | --- |
+| `/select` | 役割を選ぶ入口 |
+| `/display` | 描画結果を映す画面 |
+| `/controller` | 手元で入力する画面 |
 
-## React Compiler
+## 開発コマンド
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm install
+pnpm dev      # 開発サーバ起動
+pnpm build    # 型チェック + ビルド
+pnpm lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## ディレクトリ構成
 
 ```
+src/
+  main.tsx        # エントリ。ルータを立てるだけ
+  app/
+    router.tsx    # ルート定義
+  pages/          # 各画面の組み立て（select / display / controller）
+  features/       # 画面の段取り（接続〜入力〜反映の一連の流れ）
+  domain/         # 型と純粋ロジック（command / document / stroke / ports）
+  infra/          # 外部技術に触れる実装（webrtc / signaling / render-canvas2d）
+  shared/
+    ui/           # 画面をまたいで使う UI 部品
+```
+
+## どこに置くか迷ったら
+
+- 画面の見た目・組み立て → `pages/`
+- 複数の画面で使い回す UI 部品 → `shared/ui/`
+- 一連の処理の流れ（接続する→入力を送る→反映する など） → `features/`
+- UI にも通信にも依存しない型・ロジック → `domain/`
+- 通信や描画 API など外部技術に触れるコード → `infra/`（`domain/ports/` の interface を実装する形で）
+
+上記に収まらないもの・新しい分類が必要なものは、遠慮なくフォルダを増やして構いません。
