@@ -36,3 +36,40 @@ pnpm dev
 ```
 
 デモの操作：ドラッグ=描く ／ Space+ドラッグ or 中ボタンドラッグ=移動 ／ ホイール=拡大縮小
+
+## この機能で変更・追加したファイル（docs 以外）
+
+### src/domain（新規）
+
+| ファイル | 内容 |
+| --- | --- |
+| `src/domain/camera/camera.ts` | カメラ変換（world↔screen、panBy、zoomAt） |
+| `src/domain/stroke/stroke.ts` | ストローク型（ワールド座標の点列） |
+| `src/domain/stroke/stroke_stack.ts` | ストロークの記録スタック（appendPoint） |
+| `src/domain/scene/scene.ts` | Scene 型（camera + strokes） |
+
+### src/domain（修正）
+
+| ファイル | 内容 |
+| --- | --- |
+| `src/domain/common/point.ts` | WorldPoint 型を追加 |
+| `src/domain/command/command.ts` | コメント雛形だった Move/Zoom コマンドを差分ベースで実装 |
+| `src/domain/command/command_dispatcher.ts` | createCommandDispatcher にファクトリ化し、Scene 適用＋再描画を実装 |
+| `src/domain/ports/renderer.ts` | 空ファイルに Renderer port（interface）を記入 |
+
+### src/infra（新規）
+
+| ファイル | 内容 |
+| --- | --- |
+| `src/infra/render-canvas2d/canvas2d_renderer.ts` | Renderer port の Canvas2D 実装（全消し→全再描画） |
+
+### test（新規）
+
+| ファイル | 内容 |
+| --- | --- |
+| `test/harness.ts` | ブラウザ内テストハーネス（test / assert / 結果表示） |
+| `test/unit.html` | ユニットテストの実行ページ |
+| `test/camera.test.ts` | カメラ変換のテスト |
+| `test/stroke_stack.test.ts` | ストロークスタックのテスト |
+| `test/command_dispatcher.test.ts` | ディスパッチャのテスト（fake Renderer 使用） |
+| `test/demo.html` / `test/demo.ts` | 動作デモ。DOM イベント → Command 変換はここに置く |
