@@ -32,27 +32,31 @@ export type EraseCommand = {
     point: ScreenPoint;
 }
 
-// /**
-//  * カメラ移動：差分ではなく絶対位置を送り、last-write-wins で順序の乱れに耐える。
-//  * position はワールド座標系になりうるため ScreenPoint を流用せず、実装時に
-//  * 座標系を確認してから型を決めること。
-//  */
-// export type MoveCommand = {
-//     type: "move";
-//     controller_id: string;
-//     seq: number;
-//     timestamp: number;
-//     position: unknown;
-// }
+/**
+ * カメラ移動：画面上の移動量（差分）を送る。
+ * 絶対位置（LWW）案もあったが、現状はローカル単一ソースで欠落・順序乱れが
+ * 起きないため、入力層が状態を持たずに済む差分を採用した。
+ * 経緯とトレードオフは docs/feature_canvas/command-model.md を参照。
+ */
+export type MoveCommand = {
+    type: "move";
+    controller_id: string;
+    seq: number;
+    timestamp: number;
+    /** 画面上の移動量（px）。指の動きをそのまま送る */
+    delta: ScreenPoint;
+}
 
-// /** 拡大縮小：絶対スケールを送る */
-// export type ZoomCommand = {
-//     type: "zoom";
-//     controller_id: string;
-//     seq: number;
-//     timestamp: number;
-//     scale: number;
-// }
+/** 拡大縮小：anchor（画面上の固定点。通常はカーソル位置）を中心に factor 倍する差分を送る */
+export type ZoomCommand = {
+    type: "zoom";
+    controller_id: string;
+    seq: number;
+    timestamp: number;
+    anchor: ScreenPoint;
+    /** 現在の scale に掛ける倍率（1 より大で拡大、小で縮小） */
+    factor: number;
+}
 
 // /** 取り消し：対象ストロークを明示し、自分のストロークだけを取り消せるようにする */
 // export type UndoCommand = {
@@ -74,4 +78,6 @@ export type EraseCommand = {
 
 export type Command =
     | WriteCommand
-    | EraseCommand;
+    | EraseCommand
+    | MoveCommand
+    | ZoomCommand;
