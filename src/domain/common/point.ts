@@ -8,3 +8,14 @@ export type ScreenPoint = {
     x: number;
     y: number;
 }
+
+/**
+ * ワールド座標系の点（無限キャンバス上の固定位置）。
+ * ストロークはこの座標系で保持し、カメラ変換（camera/camera.ts）を通して
+ * ScreenPoint と相互変換する。構造は ScreenPoint と同じだが、座標系の
+ * 取り違えを防ぐため別型にしている。
+ */
+export type WorldPoint = {
+    x: number;
+    y: number;
+}
