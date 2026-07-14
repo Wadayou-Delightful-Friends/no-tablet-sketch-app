@@ -1,7 +1,10 @@
+import {CanvasSurface} from "../../shared/ui/canvas/CanvasSurface";
+import "./DisplayPage.css";
+
 export function DisplayPage() {
   return (
-    <main>
-      <h1>Display</h1>
+    <main className="display-page">
+      <CanvasSurface />
     </main>
   )
 }
