@@ -1,0 +1,17 @@
+.tool-item {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(120, 120, 120, 0.55);
+  color: #f4f4f4;
+  transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.tool-item--active {
+  background-color: #ef6f6f;
+  color: #ffffff;
+  transform: scale(1.06);
+}

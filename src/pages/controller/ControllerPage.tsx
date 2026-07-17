@@ -1,7 +1,14 @@
+import { ToolSelector } from "../../features/tool-selector/ToolSelector";
+import "./ControllerPage.css";
+
+/**
+ * スマートフォン側で表示するページ。
+ * 現時点ではツール選択 UI のみを配置する。
+ */
 export function ControllerPage() {
   return (
-    <main>
-      <h1>Controller</h1>
-    </main>
-  )
+    <div className="controller-page">
+      <ToolSelector />
+    </div>
+  );
 }

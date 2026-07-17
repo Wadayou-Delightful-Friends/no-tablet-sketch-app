@@ -1,0 +1,28 @@
+.tool-button {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background-color: rgba(150, 150, 150, 0.55);
+  color: #f4f4f4;
+
+  /* 長押し中にブラウザ側のスクロール/選択/コンテキストメニューが
+     割り込まないようにする */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  z-index: 1000;
+}
+
+.tool-button:active {
+  background-color: rgba(150, 150, 150, 0.75);
+}
