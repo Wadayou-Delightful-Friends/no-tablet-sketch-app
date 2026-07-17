@@ -1,4 +1,5 @@
 import { ToolSelector } from "../../features/tool-selector/ToolSelector";
+import { DrawingAreaFrame } from "../../shared/ui/DrawingAreaFrame/DrawingAreaFrame";
 import "./ControllerPage.css";
 
 /**
@@ -8,6 +9,7 @@ import "./ControllerPage.css";
 export function ControllerPage() {
   return (
     <div className="controller-page">
+      <DrawingAreaFrame />
       <ToolSelector />
     </div>
   );
