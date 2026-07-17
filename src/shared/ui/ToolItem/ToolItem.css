@@ -1,0 +1,30 @@
+.tool-item {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(120, 120, 120, 0.55);
+  color: #f4f4f4;
+  transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.tool-item--active {
+  background-color: #ef6f6f;
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+.tool-item__icon {
+  width: 24px;
+  height: 24px;
+  background-color: currentColor;
+
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
