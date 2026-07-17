@@ -16,6 +16,25 @@ const ITEM_GAP = 8;
 const STEP = ITEM_HEIGHT + ITEM_GAP;
 
 /**
+ * 横画面レイアウト上の「縦方向」の座標を取得する。
+ *
+ * 通常の横画面では clientY をそのまま利用する。
+ * CSSで90°回転している縦画面では、
+ * 見た目の上下移動は実際には clientX の移動になるため
+ * clientX を利用する。
+ */
+function getLogicalY(clientX: number, clientY: number) {
+  const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+
+  if (!isPortrait) {
+    return clientY;
+  }
+
+  // 90°回転時は上下方向を反転する
+  return window.innerWidth - clientX;
+}
+
+/**
  * 左上ボタンの長押し→縦スライドによるツール選択の状態とイベントハンドラをまとめたフック。
  *
  * 操作の流れ:
@@ -66,7 +85,7 @@ export function useToolSelector() {
     (e: PointerEvent<HTMLButtonElement>) => {
       e.currentTarget.setPointerCapture(e.pointerId);
       activePointerIdRef.current = e.pointerId;
-      startYRef.current = e.clientY;
+      startYRef.current = getLogicalY(e.clientX, e.clientY);
 
       clearLongPressTimer();
       longPressTimerRef.current = window.setTimeout(() => {
@@ -83,7 +102,11 @@ export function useToolSelector() {
       if (activePointerIdRef.current !== e.pointerId) return;
       if (!menuOpen) return;
 
-      setHoverTool(resolveHoverTool(e.clientY));
+      setHoverTool(
+        resolveHoverTool(
+          getLogicalY(e.clientX, e.clientY)
+        )
+      );
     },
     [menuOpen, resolveHoverTool]
   );
