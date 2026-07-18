@@ -1,6 +1,6 @@
 /** コマンドの定義 */
 
-import type { ScreenPoint } from "../common/point";
+import type { ScreenPoint } from "../schema_common/point";
 
 /**
  * 書く：1コマンド＝1点。描画側が stroke_id ごとに点を集め seq 順に連結して描く。

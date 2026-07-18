@@ -1,0 +1,16 @@
+.canvas-surface {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+
+  background-color: #ffffff;
+  border: 1cm solid #9e9e9e;
+
+  overflow: hidden;
+}
+
+.canvas-surface canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
