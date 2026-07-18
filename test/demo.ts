@@ -13,19 +13,22 @@
 import { createScene } from "../src/domain/scene/scene";
 import { createCommandDispatcher } from "../src/domain/command/command_dispatcher";
 import { createCanvas2dRenderer } from "../src/infra/render-canvas2d/canvas2d_renderer";
+import { DEFAULT_ZOOM_SETTINGS, zoomFactorPerStep } from "../src/domain/camera/camera";
 import type { Command, WriteCommand, MoveCommand, ZoomCommand } from "../src/domain/command/command";
 import type { ScreenPoint } from "../src/domain/schema_common/point";
 
 const CONTROLLER_ID = "demo";
 const PEN_RADIUS_SCREEN_PX = 2;
-const ZOOM_FACTOR_PER_WHEEL_TICK = 1.1;
+/** ホイール1目盛り＝ズーム1段階。段階数・範囲は DEFAULT_ZOOM_SETTINGS で調整する */
+const zoomFactorPerWheelTick = zoomFactorPerStep(DEFAULT_ZOOM_SETTINGS);
 
 const canvas = document.getElementById("sketch-canvas") as HTMLCanvasElement;
 const statusLabel = document.getElementById("status-label") as HTMLElement;
 
-const scene = createScene();
+// 初期表示の中央をワールド原点にする（キャンバスの中央 = world (0,0)）
+const scene = createScene({ x: canvas.width / 2, y: canvas.height / 2 });
 const renderer = createCanvas2dRenderer(canvas);
-const dispatcher = createCommandDispatcher(scene, renderer);
+const dispatcher = createCommandDispatcher(scene, renderer, DEFAULT_ZOOM_SETTINGS);
 
 /** コマンド envelope（controller_id / seq / timestamp）の採番。変換層が持つ唯一の連番状態 */
 let commandSeq = 0;
@@ -113,7 +116,7 @@ canvas.addEventListener("wheel", (event) => {
         type: "zoom",
         ...nextEnvelope(),
         anchor: toCanvasPoint(event),
-        factor: zoomIn ? ZOOM_FACTOR_PER_WHEEL_TICK : 1 / ZOOM_FACTOR_PER_WHEEL_TICK,
+        factor: zoomIn ? zoomFactorPerWheelTick : 1 / zoomFactorPerWheelTick,
     };
     sendCommand(command);
 }, { passive: false });

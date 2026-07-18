@@ -1,15 +1,21 @@
 import type { Command } from "./command";
 import type { Scene } from "../scene/scene";
 import type { Renderer } from "../ports/renderer";
-import { panBy, zoomAt, screenToWorld } from "../camera/camera";
+import type { ZoomSettings } from "../camera/camera";
+import { panBy, zoomAt, screenToWorld, screenLengthToWorld } from "../camera/camera";
 import { appendPoint } from "../stroke/stroke_stack";
 
 /**
  * コマンドを Scene に適用し、port 経由で再描画を依頼するディスパッチャ。
  * 入力側（DOM イベント等）はここに Command を渡すだけでよく、
  * Scene の構造や描画技術を知らずに済む。
+ * zoomSettings: zoom コマンド適用時のクランプ範囲（呼び出し側が調整できる）。
  */
-export const createCommandDispatcher = (scene: Scene, renderer: Renderer) => {
+export const createCommandDispatcher = (
+    scene: Scene,
+    renderer: Renderer,
+    zoomSettings: ZoomSettings,
+) => {
     const applyCommand = (command: Command): void => {
         switch (command.type) {
             case "write": {
@@ -18,7 +24,7 @@ export const createCommandDispatcher = (scene: Scene, renderer: Renderer) => {
                 // radius も同様に画面 px からワールド単位へ変換する（描いた瞬間の
                 // 見た目の太さを保ち、以後はズームに追従させるため）
                 const worldPoint = screenToWorld(scene.camera, command.point);
-                const worldRadius = command.radius / scene.camera.scale;
+                const worldRadius = screenLengthToWorld(scene.camera, command.radius);
                 appendPoint(scene.strokes, command.stroke_id, worldRadius, worldPoint);
                 break;
             }
@@ -26,7 +32,7 @@ export const createCommandDispatcher = (scene: Scene, renderer: Renderer) => {
                 scene.camera = panBy(scene.camera, command.delta);
                 break;
             case "zoom":
-                scene.camera = zoomAt(scene.camera, command.anchor, command.factor);
+                scene.camera = zoomAt(scene.camera, command.anchor, command.factor, zoomSettings);
                 break;
             case "erase":
                 // 未実装（今回のスコープ外）

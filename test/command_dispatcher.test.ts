@@ -1,5 +1,6 @@
 import { createCommandDispatcher } from "../src/domain/command/command_dispatcher";
 import { createScene } from "../src/domain/scene/scene";
+import { DEFAULT_ZOOM_SETTINGS } from "../src/domain/camera/camera";
 import type { Renderer } from "../src/domain/ports/renderer";
 import type { WriteCommand, MoveCommand, ZoomCommand } from "../src/domain/command/command";
 import type { Stroke } from "../src/domain/stroke/stroke";
@@ -22,11 +23,13 @@ const collectPoints = (stroke: Stroke): WorldPoint[] => {
 };
 
 const envelope = { controller_id: "c1", seq: 1, timestamp: 0 };
+/** ワールド原点を画面左上に置く（テストの期待値を読みやすくするため） */
+const SCREEN_ORIGIN = { x: 0, y: 0 };
 
 test("write コマンドで点がストロークスタックに積まれ、再描画される", () => {
-    const scene = createScene();
+    const scene = createScene(SCREEN_ORIGIN);
     const renderer = createFakeRenderer();
-    const dispatcher = createCommandDispatcher(scene, renderer);
+    const dispatcher = createCommandDispatcher(scene, renderer, DEFAULT_ZOOM_SETTINGS);
 
     const command: WriteCommand = { type: "write", ...envelope, stroke_id: "c1:1", radius: 2, point: { x: 10, y: 20 } };
     dispatcher.applyCommand(command);
@@ -37,9 +40,9 @@ test("write コマンドで点がストロークスタックに積まれ、再�
 });
 
 test("write はその時点のカメラでワールド座標に変換して記録する", () => {
-    const scene = createScene();
+    const scene = createScene(SCREEN_ORIGIN);
     const renderer = createFakeRenderer();
-    const dispatcher = createCommandDispatcher(scene, renderer);
+    const dispatcher = createCommandDispatcher(scene, renderer, DEFAULT_ZOOM_SETTINGS);
 
     const move: MoveCommand = { type: "move", ...envelope, delta: { x: 100, y: 50 } };
     dispatcher.applyCommand(move);
@@ -51,8 +54,8 @@ test("write はその時点のカメラでワールド座標に変換して記�
 });
 
 test("move コマンドでカメラが delta ぶん平行移動する", () => {
-    const scene = createScene();
-    const dispatcher = createCommandDispatcher(scene, createFakeRenderer());
+    const scene = createScene(SCREEN_ORIGIN);
+    const dispatcher = createCommandDispatcher(scene, createFakeRenderer(), DEFAULT_ZOOM_SETTINGS);
 
     const command: MoveCommand = { type: "move", ...envelope, delta: { x: 30, y: 20 } };
     dispatcher.applyCommand(command);
@@ -61,8 +64,8 @@ test("move コマンドでカメラが delta ぶん平行移動する", () => {
 });
 
 test("zoom コマンドで scale が factor 倍になる", () => {
-    const scene = createScene();
-    const dispatcher = createCommandDispatcher(scene, createFakeRenderer());
+    const scene = createScene(SCREEN_ORIGIN);
+    const dispatcher = createCommandDispatcher(scene, createFakeRenderer(), DEFAULT_ZOOM_SETTINGS);
 
     const command: ZoomCommand = { type: "zoom", ...envelope, anchor: { x: 400, y: 300 }, factor: 1.25 };
     dispatcher.applyCommand(command);
@@ -70,9 +73,20 @@ test("zoom コマンドで scale が factor 倍になる", () => {
     assertCloseTo(scene.camera.scale, 1.25, "scale");
 });
 
+test("zoom コマンドを重ねても scale は zoomSettings の範囲を超えない", () => {
+    const scene = createScene(SCREEN_ORIGIN);
+    const dispatcher = createCommandDispatcher(scene, createFakeRenderer(), DEFAULT_ZOOM_SETTINGS);
+
+    const command: ZoomCommand = { type: "zoom", ...envelope, anchor: { x: 0, y: 0 }, factor: 4 };
+    dispatcher.applyCommand(command);
+    dispatcher.applyCommand(command);
+
+    assertCloseTo(scene.camera.scale, DEFAULT_ZOOM_SETTINGS.maxScale, "scale");
+});
+
 test("ズーム中に描いても、描いた画面位置のワールド点として記録される", () => {
-    const scene = createScene();
-    const dispatcher = createCommandDispatcher(scene, createFakeRenderer());
+    const scene = createScene(SCREEN_ORIGIN);
+    const dispatcher = createCommandDispatcher(scene, createFakeRenderer(), DEFAULT_ZOOM_SETTINGS);
 
     const zoom: ZoomCommand = { type: "zoom", ...envelope, anchor: { x: 0, y: 0 }, factor: 2 };
     dispatcher.applyCommand(zoom);
