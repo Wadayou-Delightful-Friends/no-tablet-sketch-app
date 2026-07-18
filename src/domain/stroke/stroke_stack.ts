@@ -6,6 +6,7 @@
 
 import type { WorldPoint } from "../schema_common/point";
 import type { Stroke } from "./stroke";
+import { createStroke } from "./stroke";
 
 export type StrokeStack = Stroke[];
 
@@ -25,8 +26,8 @@ export const appendPoint = (
 ): void => {
     const latestStroke = stack.at(-1);
     if (latestStroke !== undefined && latestStroke.stroke_id === stroke_id) {
-        latestStroke.points.push(point);
+        latestStroke.push(point);
         return;
     }
-    stack.push({ stroke_id, radius, points: [point] });
+    stack.push(createStroke(stroke_id, radius, point));
 };

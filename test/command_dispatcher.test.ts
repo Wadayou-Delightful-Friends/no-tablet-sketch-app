@@ -2,6 +2,8 @@ import { createCommandDispatcher } from "../src/domain/command/command_dispatche
 import { createScene } from "../src/domain/scene/scene";
 import type { Renderer } from "../src/domain/ports/renderer";
 import type { WriteCommand, MoveCommand, ZoomCommand } from "../src/domain/command/command";
+import type { Stroke } from "../src/domain/stroke/stroke";
+import type { WorldPoint } from "../src/domain/schema_common/point";
 import { test, assert, assertCloseTo, assertPointCloseTo } from "./harness";
 
 /** 描画呼び出しの回数だけ数える fake（Canvas2D なしで domain の配線を検証する） */
@@ -11,6 +13,13 @@ const createFakeRenderer = (): Renderer & { renderCount: number } => ({
         this.renderCount += 1;
     },
 });
+
+/** 出口は forEachPoint だけなので、テストでは点を配列に集めてから検証する */
+const collectPoints = (stroke: Stroke): WorldPoint[] => {
+    const points: WorldPoint[] = [];
+    stroke.forEachPoint((point) => points.push(point));
+    return points;
+};
 
 const envelope = { controller_id: "c1", seq: 1, timestamp: 0 };
 
@@ -23,7 +32,7 @@ test("write コマンドで点がストロークスタックに積まれ、再�
     dispatcher.applyCommand(command);
 
     assert(scene.strokes.length === 1, "stroke should be pushed");
-    assertPointCloseTo(scene.strokes[0].points[0], { x: 10, y: 20 }, "point");
+    assertPointCloseTo(collectPoints(scene.strokes[0])[0], { x: 10, y: 20 }, "point");
     assert(renderer.renderCount === 1, "render should be called once");
 });
 
@@ -38,7 +47,7 @@ test("write はその時点のカメラでワールド座標に変換して記�
     dispatcher.applyCommand(write);
 
     // 画面 (100,50) はカメラ移動後のワールド原点にあたる
-    assertPointCloseTo(scene.strokes[0].points[0], { x: 0, y: 0 }, "worldPoint");
+    assertPointCloseTo(collectPoints(scene.strokes[0])[0], { x: 0, y: 0 }, "worldPoint");
 });
 
 test("move コマンドでカメラが delta ぶん平行移動する", () => {
@@ -71,6 +80,6 @@ test("ズーム中に描いても、描いた画面位置のワールド点と�
     dispatcher.applyCommand(write);
 
     // scale=2 なので画面 (100,100) はワールド (50,50)、radius も半分になる
-    assertPointCloseTo(scene.strokes[0].points[0], { x: 50, y: 50 }, "worldPoint");
+    assertPointCloseTo(collectPoints(scene.strokes[0])[0], { x: 50, y: 50 }, "worldPoint");
     assertCloseTo(scene.strokes[0].radius, 2, "worldRadius");
 });

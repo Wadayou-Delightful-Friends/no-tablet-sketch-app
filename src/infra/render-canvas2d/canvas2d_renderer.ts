@@ -8,6 +8,7 @@
 import type { Renderer } from "../../domain/ports/renderer";
 import type { Scene } from "../../domain/scene/scene";
 import type { Stroke } from "../../domain/stroke/stroke";
+import type { ScreenPoint } from "../../domain/schema_common/point";
 import { worldToScreen } from "../../domain/camera/camera";
 
 const STROKE_COLOR = "#222222";
@@ -19,7 +20,8 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
     }
 
     const drawStroke = (scene: Scene, stroke: Stroke): void => {
-        const screenPoints = stroke.points.map((point) => worldToScreen(scene.camera, point));
+        const screenPoints: ScreenPoint[] = [];
+        stroke.forEachPoint((point) => screenPoints.push(worldToScreen(scene.camera, point)));
         const screenLineWidth = stroke.radius * 2 * scene.camera.scale;
 
         // 1 点だけのストローク（クリックのみ）は線にならないためドットとして描く
