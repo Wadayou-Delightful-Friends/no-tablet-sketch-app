@@ -14,7 +14,7 @@ import { createScene } from "../src/domain/scene/scene";
 import { createCommandDispatcher } from "../src/domain/command/command_dispatcher";
 import { createCanvas2dRenderer } from "../src/infra/render-canvas2d/canvas2d_renderer";
 import type { Command, WriteCommand, MoveCommand, ZoomCommand } from "../src/domain/command/command";
-import type { ScreenPoint } from "../src/domain/common/point";
+import type { ScreenPoint } from "../src/domain/schema_common/point";
 
 const CONTROLLER_ID = "demo";
 const PEN_RADIUS_SCREEN_PX = 2;

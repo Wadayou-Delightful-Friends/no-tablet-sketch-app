@@ -7,7 +7,7 @@
  * 入出力だけを見れば済むようにするため。
  */
 
-import type { ScreenPoint, WorldPoint } from "../common/point";
+import type { ScreenPoint, WorldPoint } from "../schema_common/point";
 
 export type Camera = {
     scale: number;

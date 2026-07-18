@@ -4,7 +4,7 @@
  * 将来の undo（末尾から取り消す）の両方にそのまま使える。
  */
 
-import type { WorldPoint } from "../common/point";
+import type { WorldPoint } from "../schema_common/point";
 import type { Stroke } from "./stroke";
 
 export type StrokeStack = Stroke[];

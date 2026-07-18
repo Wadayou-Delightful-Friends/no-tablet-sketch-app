@@ -4,7 +4,7 @@
  * キャンバス上の同じ場所に留まるようにするため（変換は描画時に行う）。
  */
 
-import type { WorldPoint } from "../common/point";
+import type { WorldPoint } from "../schema_common/point";
 
 export type Stroke = {
     stroke_id: string;
