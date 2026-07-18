@@ -86,21 +86,23 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         context.stroke();
     };
 
+    /**
+     * 概要: Scene 全体を描き直す。
+     *
+     * 処理フロー: 全消し → ストロークを積まれた順（下から上）に全部描く。
+     * 前回の絵を残さないのは、差分描画の「描き漏れ・二重描き」のバグを
+     * 構造的に不可能にするため。
+     *
+     * 引数 scene: 描く対象（カメラ + 全ストローク）/ 戻り値: なし
+     */
+    const renderWholeScene = (scene: Scene): void => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        for (const stroke of scene.strokes) {
+            drawStroke(scene, stroke);
+        }
+    };
+
     return {
-        /**
-         * 概要: Scene 全体を描き直す。
-         *
-         * 処理フロー: 全消し → ストロークを積まれた順（下から上）に全部描く。
-         * 前回の絵を残さないのは、差分描画の「描き漏れ・二重描き」のバグを
-         * 構造的に不可能にするため。
-         *
-         * 引数 scene: 描く対象（カメラ + 全ストローク）/ 戻り値: なし
-         */
-        render(scene: Scene): void {
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            for (const stroke of scene.strokes) {
-                drawStroke(scene, stroke);
-            }
-        },
+        render: renderWholeScene
     };
 };
