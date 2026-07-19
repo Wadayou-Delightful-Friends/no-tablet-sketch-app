@@ -1,14 +1,7 @@
+// src/shared/ui/ToolItem/ToolItem.tsx
 import type { ToolType } from "../../types/tool";
-import penIcon from "./icons/pen.png";
-import eraserIcon from "./icons/eraser.png";
-import resetIcon from "./icons/reset.png";
+import { TOOL_ICON_SRC } from "../../assets/toolIcons";
 import "./ToolItem.css";
-
-const ICON_SRC: Record<ToolType, string> = {
-  pen: penIcon,
-  eraser: eraserIcon,
-  reset: resetIcon,
-};
 
 type ToolItemProps = {
   tool: ToolType;
@@ -16,11 +9,6 @@ type ToolItemProps = {
   isHovered: boolean;
 };
 
-/**
- * ペン・消しゴム・リセットのうち 1 個分のアイコン表示専用コンポーネント。
- * タッチ/ポインターイベントは親（ToolButton 側）で一括管理しているため、
- * このコンポーネント自体はイベントを持たない（見た目のみ）。
- */
 export function ToolItem({ tool, isHovered }: ToolItemProps) {
   return (
     <div
@@ -30,8 +18,8 @@ export function ToolItem({ tool, isHovered }: ToolItemProps) {
       <span
         className="tool-item__icon"
         style={{
-          WebkitMaskImage: `url(${ICON_SRC[tool]})`,
-          maskImage: `url(${ICON_SRC[tool]})`,
+          WebkitMaskImage: `url(${TOOL_ICON_SRC[tool]})`,
+          maskImage: `url(${TOOL_ICON_SRC[tool]})`,
         }}
       />
     </div>
