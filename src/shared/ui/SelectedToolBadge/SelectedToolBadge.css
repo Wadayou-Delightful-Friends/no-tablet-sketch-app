@@ -1,0 +1,35 @@
+/*
+ * CanvasSurface.css の枠の太さ(1cm)の内側に収まるよう配置している。
+ * 枠の太さを変更した場合は、このコンポーネントを置く親要素側の
+ * 余白（padding など）も合わせて見直すこと。
+ */
+.selected-tool-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+
+  background-color: rgba(60, 60, 60, 0.7);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  pointer-events: none;
+}
+
+.selected-tool-badge__icon {
+  width: 24px;
+  height: 24px;
+  background-color: #ffffff;
+
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
