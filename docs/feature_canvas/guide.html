@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>feature_canvas 利用ガイド — キャンバスに描く仕組みの使い方</title>
+<style>
+/* ============================================================
+   feature_canvas 利用ガイド（視覚版）
+   README.md と同じ内容を、図と色で追えるようにしたもの。
+   単一ファイルで完結させる（ブラウザで開くだけで読める状態を保つ）。
+   ============================================================ */
+
+:root {
+  --bg:        #fbfaf8;
+  --surface:   #ffffff;
+  --surface-2: #f3f2ef;
+  --ink:       #23262d;
+  --ink-soft:  #4b5058;
+  --muted:     #767c87;
+  --line:      #e2e0db;
+  --line-firm: #cfccc5;
+
+  --write:  #2f6df6;
+  --erase:  #d9534f;
+  --move:   #7c5cff;
+  --zoom:   #0f8a6a;
+  --warn:   #b07d1a;
+  --warn-bg:#fdf6e6;
+
+  --radius: 10px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #14161b;
+    --surface:   #1c1f26;
+    --surface-2: #232730;
+    --ink:       #e6e8ec;
+    --ink-soft:  #c2c7d0;
+    --muted:     #949bA7;
+    --line:      #2e333d;
+    --line-firm: #3d434f;
+
+    --write:  #6f9dff;
+    --erase:  #f0817d;
+    --move:   #a891ff;
+    --zoom:   #3fbf9c;
+    --warn:   #e0b552;
+    --warn-bg:#2a2317;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+               "Yu Gothic UI", Meiryo, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+  /* 日本語と英数字が混ざる本文で、行間と字間を読みやすい側に寄せる */
+  letter-spacing: .01em;
+}
+
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px 96px;
+}
+
+/* ---------- ヘッダ ---------- */
+
+header.page {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  padding: 48px 24px 36px;
+  margin-bottom: 40px;
+}
+header.page .inner { max-width: 900px; margin: 0 auto; }
+header.page h1 {
+  font-size: 30px;
+  line-height: 1.45;
+  margin: 0 0 12px;
+  letter-spacing: -.01em;
+}
+header.page .lede { color: var(--ink-soft); margin: 0 0 20px; max-width: 62ch; }
+header.page .refs { font-size: 14px; color: var(--muted); margin: 0; }
+
+.audience {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--write);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 3px 12px;
+  margin-bottom: 18px;
+}
+
+/* ---------- 目次 ---------- */
+
+nav.toc {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  margin-bottom: 48px;
+  font-size: 14.5px;
+}
+nav.toc b { display: block; font-size: 12.5px; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; }
+nav.toc ol { margin: 0; padding-left: 20px; }
+nav.toc li { margin: 5px 0; }
+nav.toc li.test-item a { color: var(--warn); }
+
+/* ---------- 見出し ---------- */
+
+h2 {
+  font-size: 22px;
+  margin: 64px 0 6px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--line-firm);
+  scroll-margin-top: 20px;
+}
+h2 .sub { display: block; font-size: 14px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+h3 { font-size: 17px; margin: 36px 0 8px; }
+p { margin: 14px 0; }
+
+a { color: var(--write); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+
+code {
+  font-family: var(--mono);
+  font-size: .875em;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+pre {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-firm);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  overflow-x: auto;           /* 横長コードは本文ではなくブロック内でスクロールさせる */
+  font-size: 13.5px;
+  line-height: 1.7;
+  margin: 18px 0;
+}
+pre code { background: none; border: 0; padding: 0; white-space: pre; font-size: 1em; }
+pre .cm { color: var(--muted); }
+
+/* ---------- パイプライン図 ---------- */
+
+.pipeline { margin: 28px 0 12px; }
+
+.stage {
+  background: var(--surface);
+  border: 1px solid var(--line-firm);
+  border-left: 4px solid var(--stage, var(--line-firm));
+  border-radius: var(--radius);
+  padding: 14px 18px;
+}
+.stage .name { font-weight: 700; font-family: var(--mono); font-size: 14.5px; }
+.stage .desc { font-size: 13.5px; color: var(--muted); margin-top: 2px; line-height: 1.6; }
+
+.arrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 8px 22px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.arrow::before {
+  content: "▼";
+  font-size: 11px;
+  color: var(--line-firm);
+}
+
+/* ---------- コマンド 4 種のカード ---------- */
+
+.cmd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 14px;
+  margin: 24px 0;
+}
+.cmd {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--c);
+  border-radius: var(--radius);
+  padding: 14px 16px 16px;
+}
+.cmd .type {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--c);
+}
+.cmd .what { font-size: 13.5px; color: var(--ink-soft); margin: 2px 0 10px; }
+.cmd .fields { font-family: var(--mono); font-size: 12.5px; line-height: 1.9; color: var(--muted); }
+.cmd .fields b { color: var(--ink); font-weight: 600; }
+
+/* ---------- 表 ---------- */
+
+.table-scroll { overflow-x: auto; margin: 20px 0; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14.5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--surface-2); font-size: 13px; letter-spacing: .03em; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+
+/* ---------- 注意・判断基準のボックス ---------- */
+
+.note {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent, var(--line-firm));
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin: 20px 0;
+}
+.note .head {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--accent, var(--muted));
+  margin-bottom: 4px;
+}
+.note p { margin: 6px 0 0; font-size: 15px; }
+.note :first-child { margin-top: 0; }
+
+.note.trap   { --accent: var(--erase); }
+.note.rule   { --accent: var(--zoom); }
+.note.info   { --accent: var(--write); }
+
+/* ---------- 契約リスト（dispatcher など） ---------- */
+
+.contract { list-style: none; padding: 0; margin: 20px 0; }
+.contract > li {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 10px;
+}
+.contract .t { font-weight: 700; display: block; margin-bottom: 2px; }
+.contract .d { font-size: 14.5px; color: var(--ink-soft); }
+
+/* ---------- ストロークスタックの図 ---------- */
+
+.stack-fig {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin: 24px 0;
+}
+.stack-fig .layers { display: flex; flex-direction: column-reverse; gap: 6px; }
+.layer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--c);
+  border-left: 4px solid var(--c);
+  border-radius: 7px;
+  padding: 9px 14px;
+  font-size: 13.5px;
+  background: var(--surface-2);
+}
+.layer .idx { font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 5.5em; }
+.layer .kind { font-family: var(--mono); font-size: 12.5px; color: var(--c); font-weight: 700; min-width: 12em; }
+.layer .memo { color: var(--ink-soft); font-size: 13px; }
+.stack-fig .axis {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--muted); margin-top: 12px; padding-top: 10px;
+  border-top: 1px dashed var(--line-firm);
+}
+
+/* ---------- 手順（ツール追加） ---------- */
+
+ol.steps { padding-left: 0; list-style: none; counter-reset: step; margin: 20px 0; }
+ol.steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 12px 16px 12px 52px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  font-size: 14.5px;
+}
+ol.steps li::before {
+  content: counter(step);
+  position: absolute; left: 16px; top: 12px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--write); color: #fff;
+  font-size: 13px; font-weight: 700;
+  display: grid; place-items: center;
+}
+
+ul.plain { padding-left: 22px; }
+ul.plain li { margin: 8px 0; }
+
+/* ---------- キー表記 ---------- */
+
+kbd {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--surface);
+  border: 1px solid var(--line-firm);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+/* ---------- テスト用セクション（本仕様と視覚的に切り離す） ---------- */
+
+.testzone {
+  margin-top: 80px;
+  border: 2px dashed var(--warn);
+  border-radius: 14px;
+  background: var(--warn-bg);
+  padding: 8px 26px 32px;
+}
+.testzone h2 {
+  border-bottom-color: var(--warn);
+  color: var(--warn);
+  margin-top: 28px;
+}
+.testzone .banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  background: var(--warn);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: .04em;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin: 20px 0 4px;
+}
+@media (prefers-color-scheme: dark) { .testzone .banner { color: #17140c; } }
+.testzone .stage, .testzone table, .testzone .note, .testzone pre, .testzone .contract > li {
+  background: var(--surface);
+}
+.testzone th { background: var(--surface-2); }
+
+footer.page {
+  margin-top: 72px; padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px; color: var(--muted);
+}
+
+@media (max-width: 620px) {
+  header.page { padding: 32px 20px 26px; }
+  header.page h1 { font-size: 23px; }
+  .wrap { padding: 0 18px 64px; }
+  .testzone { padding: 8px 16px 24px; }
+  .layer { flex-wrap: wrap; gap: 4px 12px; }
+}
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="inner">
+    <span class="audience">呼ぶ側のためのガイド</span>
+    <h1>feature_canvas 利用ガイド<br>— キャンバスに描く仕組みの使い方</h1>
+    <p class="lede">
+      無限キャンバスへの描画は <code>domain/command</code>（何をするか）・<code>domain/stroke</code>（何が描かれたか）・
+      <code>infra/render-canvas2d</code>（どう映すか）の 3 つでできている。
+      このページは「どう使うか」と「どこで詰まるか」を書く。
+    </p>
+    <p class="refs">
+      なぜその設計にしたかは
+      <a href="001_canvas_prototype/README.md">001_canvas_prototype</a>（プロトタイプの判断記録）と
+      <a href="002_inprove_render/README.md">002_inprove_render</a>（座標設計の見直しと消しゴム）にある。
+      このガイドはそれらを読まなくても正しく呼べることを目指す。
+      内容は <a href="README.md">README.md</a> と同じ（こちらは図で追える版）。
+    </p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <b>目次</b>
+  <ol>
+    <li><a href="#flow">全体の流れ</a></li>
+    <li><a href="#command">Command — 送る側</a></li>
+    <li><a href="#dispatcher">dispatcher — 適用する側</a></li>
+    <li><a href="#stroke">Stroke / StrokeStack — 記録される側</a></li>
+    <li><a href="#renderer">Renderer — 映す側</a></li>
+    <li class="test-item"><a href="#testzone">テスト用：直接描画できる仕組み（暫定・削除予定）</a></li>
+  </ol>
+</nav>
+
+<!-- ============================ 1. 全体の流れ ============================ -->
+<h2 id="flow">1. 全体の流れ</h2>
+
+<div class="pipeline">
+  <div class="stage" style="--stage: var(--muted)">
+    <div class="name">入力</div>
+    <div class="desc">ポインタ操作／将来はスマホ（コントローラ）からの受信</div>
+  </div>
+  <div class="arrow">Command を作る（<b>画面座標のまま</b>）</div>
+
+  <div class="stage" style="--stage: var(--write)">
+    <div class="name">dispatcher.applyCommand(command)</div>
+    <div class="desc">画面座標 → ワールド座標に変換し、Scene を更新する</div>
+  </div>
+  <div class="arrow">その場で Scene を書き換える</div>
+
+  <div class="stage" style="--stage: var(--move)">
+    <div class="name">Scene = camera + strokes</div>
+    <div class="desc">camera＝どこを見ているか／strokes＝何が描かれたか</div>
+  </div>
+  <div class="arrow">適用のたびに毎回</div>
+
+  <div class="stage" style="--stage: var(--zoom)">
+    <div class="name">renderer.render(scene)</div>
+    <div class="desc">全消し → 全ストローク再描画（immediate mode）</div>
+  </div>
+</div>
+
+<p>組み立ては 1 か所でまとめて行う。実例は
+<a href="../../src/features/sketch/useSketchCanvas.ts">useSketchCanvas.ts</a>。</p>
+
+<pre><code>const scene = createScene({ x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 });
+const renderer = createCanvas2dRenderer(canvas);
+const dispatcher = createCommandDispatcher(scene, renderer, DEFAULT_ZOOM_SETTINGS);
+<span class="cm">// あとは dispatcher.applyCommand に Command を流し込むだけ</span></code></pre>
+
+<div class="note trap">
+  <div class="head">つまずきポイント</div>
+  <p><code>createScene</code> に渡すのは「ワールド原点 (0,0) を置く画面位置」。表示エリアの中央を渡すと
+  「新規キャンバスの中央 = 原点」になる。<b>CSS px で渡すこと</b> —— <code>canvas.width</code> はデバイス px なので、
+  高 DPI 環境では原点が倍ずれる。</p>
+</div>
+
+<!-- ============================ 2. Command ============================ -->
+<h2 id="command">2. Command — 送る側<span class="sub">キャンバスへの操作を表すただのオブジェクト</span></h2>
+
+<p>操作はすべて <a href="../../src/domain/command/command.ts">Command</a> で表す。
+メソッドを持たないので、そのまま JSON にして通信に載せられる。</p>
+
+<div class="cmd-grid">
+  <div class="cmd" style="--c: var(--write)">
+    <div class="type">write</div>
+    <div class="what">描く</div>
+    <div class="fields"><b>stroke_id</b><br><b>radius</b>（画面 px）<br><b>point</b>（画面座標）</div>
+  </div>
+  <div class="cmd" style="--c: var(--erase)">
+    <div class="type">erase</div>
+    <div class="what">消す（write と同じ形）</div>
+    <div class="fields"><b>stroke_id</b><br><b>radius</b>（画面 px）<br><b>point</b>（画面座標）</div>
+  </div>
+  <div class="cmd" style="--c: var(--move)">
+    <div class="type">move</div>
+    <div class="what">表示を平行移動する</div>
+    <div class="fields"><b>delta</b><br>画面上の移動量（px）</div>
+  </div>
+  <div class="cmd" style="--c: var(--zoom)">
+    <div class="type">zoom</div>
+    <div class="what">拡大縮小する</div>
+    <div class="fields"><b>anchor</b>（動かさない画面上の点）<br><b>factor</b>（現 scale に掛ける倍率）</div>
+  </div>
+</div>
+
+<h3>共通の封筒（envelope）</h3>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>フィールド</th><th>意味</th></tr></thead>
+  <tbody>
+    <tr><td><code>controller_id</code></td><td>発行元の識別子。複数コントローラのコマンドを混ぜないための鍵</td></tr>
+    <tr><td><code>seq</code></td><td>コントローラごとの単調増加の通し番号。順序・欠落検出・重複排除に使う</td></tr>
+    <tr><td><code>timestamp</code></td><td>生成時刻（epoch ms）。コントローラをまたいだ大まかな順序付けに使う</td></tr>
+    <tr><td><code>stroke_id</code></td><td>ストロークの識別子（<code>write</code> / <code>erase</code> のみ）。<code>`${controller_id}:${連番}`</code> で作り、他コントローラと衝突させない</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note info">
+  <div class="head">今はまだ使われていない</div>
+  <p><code>controller_id</code> / <code>seq</code> / <code>timestamp</code> は<b>現状 dispatcher が読んでいない</b>。
+  通信層が入るまでは値が入っていれば動くが、将来 seq で並べ替える前提なので、
+  送る側は今のうちから正しく採番しておくこと。</p>
+</div>
+
+<h3>呼ぶ側が知っておくべき 4 つ</h3>
+
+<ul class="contract">
+  <li>
+    <span class="t">1 コマンド = 1 点</span>
+    <span class="d">「線を引き始める」「引き終わる」コマンドは存在しない。ストロークの区切りは
+    <code>stroke_id</code> が変わったかどうかだけで決まる。線分ではなく点を送るので、
+    1 点落ちても隣どうしが繋がるだけで線は途切れない。</span>
+  </li>
+  <li>
+    <span class="t">座標も太さも画面のまま送る</span>
+    <span class="d"><code>point</code> は画面座標、<code>radius</code> は画面 px。ワールド座標への変換は
+    dispatcher が受け取った瞬間に行う（水際の変換）。送る側がカメラの状態を知る必要はない。</span>
+  </li>
+  <li>
+    <span class="t">move は差分、zoom は倍率</span>
+    <span class="d">絶対位置ではないので、入力層は前回位置を除いて状態を持たなくてよい。
+    <code>factor</code> は現在の scale に掛ける値で、1 より大きければ拡大。1 段階ぶんの倍率が欲しければ
+    <code>zoomFactorPerStep(settings)</code>（等比）を使う。等差で刻むと縮小側が異常に速く感じられる。</span>
+  </li>
+  <li>
+    <span class="t">未知の type は例外になる</span>
+    <span class="d"><code>applyCommand</code> は知らない type を受けると <code>Error("Unknown command")</code> を投げる。
+    通信越しに素性の怪しいコマンドを流すなら、呼ぶ側で握るか、事前に検証すること。</span>
+  </li>
+</ul>
+
+<div class="note rule">
+  <div class="head">判断基準</div>
+  <p><b>欠落が起きても壊れない粒度を選ぶ。</b> 点で送るという選択は、通信が信頼できない前提から来ている。</p>
+</div>
+
+<!-- ============================ 3. dispatcher ============================ -->
+<h2 id="dispatcher">3. dispatcher — 適用する側</h2>
+
+<pre><code>const dispatcher = createCommandDispatcher(scene, renderer, zoomSettings);
+dispatcher.applyCommand(command);   <span class="cm">// 戻り値なし</span></code></pre>
+
+<ul class="contract">
+  <li>
+    <span class="t">scene はその場で書き換わる</span>
+    <span class="d"><code>scene.strokes</code> は破壊的に追記され、<code>scene.camera</code> は新しいオブジェクトに再代入される
+    （Camera 側は不変で、変換関数はすべて新しい Camera を返す）。つまり
+    <b>セッション中は同じ Scene オブジェクトを持ち続ける</b>必要がある。React で <code>useState</code> に入れて
+    作り直すと描いた絵が消えるので、<a href="../../src/features/sketch/useSketchCanvas.ts">useSketchCanvas.ts</a> では ref に置いている。</span>
+  </li>
+  <li>
+    <span class="t">1 コマンドごとに必ず全再描画が走る</span>
+    <span class="d">バッチも requestAnimationFrame の合流もない。「Scene を渡せば必ず正しい絵になる」を
+    隠れた状態なしで成立させるための割り切りで、性能が問題になったら Renderer は port で分離されているため
+    infra 側だけを差し替えればよい。</span>
+  </li>
+  <li>
+    <span class="t">変換は適用した瞬間のカメラで行う</span>
+    <span class="d">ズームやパンの途中で描いた点も、その瞬間に指の下にあったワールド位置として記録され、
+    以後カメラをどう動かしても動かない。</span>
+  </li>
+  <li>
+    <span class="t">ズームの範囲は注入で決まる</span>
+    <span class="d">既定の <code>DEFAULT_ZOOM_SETTINGS</code> は 1/8〜8 倍を 20 段階。範囲や段階数を変えたいときは
+    ロジックではなくこの値（または渡す <code>ZoomSettings</code>）を差し替える。</span>
+  </li>
+</ul>
+
+<!-- ============================ 4. Stroke ============================ -->
+<h2 id="stroke">4. Stroke / StrokeStack — 記録される側</h2>
+
+<p><a href="../../src/domain/stroke/stroke.ts">stroke.ts</a> /
+<a href="../../src/domain/stroke/stroke_stack.ts">stroke_stack.ts</a>。</p>
+
+<p><code>StrokeStack</code> は <code>Stroke[]</code> で、<b>配列の順番がそのまま塗り順</b>。
+ペンと消しゴムは同じスタックに混在するので、積み順が結果を左右する。</p>
+
+<div class="stack-fig">
+  <div class="layers">
+    <div class="layer" style="--c: var(--write)"><span class="idx">[0]</span><span class="kind">PEN_DEFAULT</span><span class="memo">一番下（最初に描いた線）</span></div>
+    <div class="layer" style="--c: var(--write)"><span class="idx">[1]</span><span class="kind">PEN_DEFAULT</span><span class="memo">その上に重なる</span></div>
+    <div class="layer" style="--c: var(--erase)"><span class="idx">[2]</span><span class="kind">ERASE_DEFAULT</span><span class="memo">下の [0] [1] を形のぶん抜く</span></div>
+    <div class="layer" style="--c: var(--write)"><span class="idx">[3] 末尾</span><span class="kind">PEN_DEFAULT</span><span class="memo">消しゴムの後なので消されない</span></div>
+  </div>
+  <div class="axis"><span>← 先頭 ＝ 下 ＝ 古い</span><span>末尾 ＝ 上 ＝ 最新 →</span></div>
+</div>
+
+<p>ストロークの見た目は <code>StrokeStyle { kind, radius }</code> にまとまっている。
+<code>kind</code> は <code>"PEN_DEFAULT" | "ERASE_DEFAULT"</code>、<code>radius</code> は
+<b>ワールド単位</b>（画面 px ではない）。色や不透明度が増えてもこの型に足すだけで済むよう、
+生成・記録側のシグネチャを固定する役目を持つ。</p>
+
+<h3>読み書きの入口は 2 つだけ</h3>
+
+<pre><code>stroke.push(worldPoint);                      <span class="cm">// 末尾に点を足す</span>
+stroke.forEachPoint((worldPoint) =&gt; { ... }); <span class="cm">// 追加順に全点を読む</span></code></pre>
+
+<div class="note rule">
+  <div class="head">守ること・判断基準</div>
+  <p><b>点列の配列を返す口は作らないこと。</b> 内部の持ち方（現状は <code>WorldPoint[]</code>、将来は x/y 別配列の SoA など）を
+  利用側に固定させないための設計で、口を 1 つ作った瞬間にこの利点は消える。配列が必要なら
+  <code>forEachPoint</code> で自分の配列に貯める —— レンダラの <code>drawStroke</code> がその実例。</p>
+  <p>判断基準は、<b>性能都合で差し替えたい実装ほど、外から見える形を狭く保つ</b>こと。</p>
+</div>
+
+<h3>appendPoint の引っかかりやすい 2 点</h3>
+
+<p>点の追記は <code>appendPoint(stack, stroke_id, point, style)</code> に集約されている。</p>
+
+<div class="note trap">
+  <div class="head">つまずきポイント 1 — 比較するのは末尾だけ</div>
+  <p>同じ <code>stroke_id</code> でも、間に別のストロークが積まれた後に来たら、続きではなく
+  <b>新しいストローク</b>になる。ローカル単一ソースなら順序が乱れないので成立しているが、
+  複数コントローラのコマンドを交互に流すと破れる制約。</p>
+</div>
+
+<div class="note trap">
+  <div class="head">つまずきポイント 2 — style は新規作成時にしか使われない</div>
+  <p>続きの点は末尾ストロークの style を引き継ぐ。途中でツールを切り替えると <code>stroke_id</code> も変わるので、
+  自然に別ストロークとして分かれる。</p>
+</div>
+
+<p>なお <code>createStroke</code> は第 1 点を必須で受け取るので、<b>空のストロークは存在しない</b>。</p>
+
+<!-- ============================ 5. Renderer ============================ -->
+<h2 id="renderer">5. Renderer — 映す側</h2>
+
+<p>domain が知っているのは <a href="../../src/domain/ports/renderer.ts">renderer.ts</a> の
+<code>Renderer { render(scene): void }</code> だけで、Canvas2D の型は domain に漏れない。
+実装は <a href="../../src/infra/render-canvas2d/canvas2d_renderer.ts">canvas2d_renderer.ts</a> の
+<code>createCanvas2dRenderer(canvas)</code>。</p>
+
+<ul class="contract">
+  <li>
+    <span class="t">2D コンテキストが取れないと構築時に throw する</span>
+    <span class="d"><code>Canvas2D context is not available</code>。描けないまま黙って動き続けるより起動時に落とす方針。</span>
+  </li>
+  <li>
+    <span class="t">毎回全消し → 全部描き直す（immediate mode）</span>
+    <span class="d">前回の絵は残らないので、レンダラの外で canvas に描き込んでも次の <code>render</code> で消える。</span>
+  </li>
+  <li>
+    <span class="t">canvas をリサイズしたら再描画が必要</span>
+    <span class="d"><code>canvas.width</code> への再代入でビットマップが消えるため、リサイズ後に
+    <code>renderer.render(scene)</code> を呼ぶこと（フックの <code>handleResize</code> がやっている）。</span>
+  </li>
+  <li>
+    <span class="t">線の太さはズームに追従する</span>
+    <span class="d">画面上の線幅は <code>radius * 2 * scale</code>。「紙に描いた絵を拡大する」直感に合わせている。</span>
+  </li>
+  <li>
+    <span class="t">1 点だけのストロークはドットになる</span>
+    <span class="d">クリックのみの入力は線にならない。0 長のパスは <code>stroke()</code> では何も出ないため、円の塗りで描く。</span>
+  </li>
+</ul>
+
+<h3>ツールを増やすとき</h3>
+
+<p><code>ERASE_DEFAULT</code> が <code>destination-out</code>（下に積まれた絵を形のぶん抜く）で実現されているように、
+<b>種別ごとに違うのは合成モードと色の設定だけ</b>で、点列をドット／折れ線にする幾何は共通。
+そのため手順は 2 か所で済む。</p>
+
+<ol class="steps">
+  <li><a href="../../src/domain/stroke/stroke.ts">stroke.ts</a> の <code>KindOfTool</code> にリテラルを 1 つ足す</li>
+  <li><a href="../../src/infra/render-canvas2d/canvas2d_renderer.ts">canvas2d_renderer.ts</a> の
+      <code>STROKE_RENDER_STRATEGIES</code> に対応する <code>prepare</code> を 1 エントリ足す</li>
+</ol>
+
+<p><code>drawStroke</code> 本体は触らない。<code>KindOfTool</code> が <code>Record</code> のキーになっているので、
+1 を足して 2 を忘れると型エラーで気づける。合成モードは <code>save()</code> / <code>restore()</code> で
+1 ストロークごとに閉じているため、次のストロークへ漏れる心配もない
+（詳細は <a href="002_inprove_render/erase-design.md">erase-design.md</a>）。</p>
+
+</div><!-- /wrap -->
+
+<!-- ============================ テスト用（分離） ============================ -->
+<div class="wrap">
+<section class="testzone" id="testzone">
+
+  <div class="banner">⚠️ ここから下は本来の仕様ではない — 暫定の足場・削除予定</div>
+
+  <h2>テスト用：直接描画できる仕組み</h2>
+
+  <p>本番の入力源はスマホ（コントローラ）側であり、
+  <a href="../../src/features/sketch/sketch_input.ts">sketch_input.ts</a> は通信層が未実装の間だけ
+  <b>PC ブラウザ単体で描画を確認するために置いている足場</b>。
+  受信アダプタ（<a href="../../src/domain/ports/receiver.ts">receiver.ts</a> の実装）が入ったら
+  <b>このファイルごと、この節ごと削除する</b>。上の仕様に依存を作らないこと。</p>
+
+  <pre><code>const detach = attachSketchInput(canvas, dispatcher.applyCommand);
+<span class="cm">// detach() で張ったリスナーをすべて解除する</span></code></pre>
+
+  <p>役割は「DOM イベント → Command」の変換だけ（React 非依存）。
+  <code>pnpm dev</code> で起動して、キャンバス上で次の操作ができる。</p>
+
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>操作</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>左ドラッグ</td><td>描く（<code>write</code>）</td></tr>
+      <tr><td><kbd>E</kbd> を押しながら左ドラッグ</td><td>消す（<code>erase</code>）</td></tr>
+      <tr><td><kbd>Space</kbd> を押しながらドラッグ／中ボタンドラッグ</td><td>移動（<code>move</code>）</td></tr>
+      <tr><td>ホイール</td><td>カーソル位置を中心に拡大縮小（<code>zoom</code>、1 目盛り = 1 段階）</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>テスト用ゆえの割り切り</h3>
+  <p>本番の挙動と混同しないこと。</p>
+
+  <ul class="plain">
+    <li><code>controller_id</code> は <code>"local"</code> 固定。複数コントローラの検証はできない</li>
+    <li>ペンの半径は 2px、<b>消しゴムは 12px</b>。消し跡が見やすいよう意図的に太くしてある</li>
+    <li><kbd>E</kbd> キーという割り当ては「トラックパッドでも押しやすい」以上の理由がない仮のもの</li>
+    <li>描く／消すの種別は pointerdown で確定し、<b>途中で <kbd>E</kbd> を離しても最後まで同じ種別で描き切る</b>
+        （style は新規ストローク作成時にしか効かないため、1 ストロークの途中で切り替えても反映されない）</li>
+    <li>修飾キーは canvas がフォーカスを持たないため <code>window</code> で拾っている。
+        ページ内に他のキー操作を足すと衝突しうる</li>
+  </ul>
+
+</section>
+
+<footer class="page">
+  内容は <a href="README.md">README.md</a> と同一。仕様を更新するときは両方を直すこと。
+</footer>
+
+</div><!-- /wrap -->
+
+</body>
+</html>

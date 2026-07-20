@@ -1,19 +1,34 @@
 import { forwardRef, useEffect, useRef } from "react";
 import "./CanvasSurface.css";
 
+// --- 追加: レンダラー側へリサイズを通知するための prop ---
+type CanvasSurfaceProps = {
+  /**
+   * リサイズ完了後（バッキングストア再設定・ctx.scale 適用後）に CSS px サイズで通知する。
+   *
+   * canvas.width への再代入でビットマップが消えるため、
+   * 受け取った側は再描画する必要がある。
+   */
+  onResize?: (size: { width: number; height: number }) => void;
+};
+
 /**
  * PC 側に表示する描画エリア本体。
  *
- * 現時点ではスクリーンショットにある「白いキャンバス + 灰色の枠」を
- * 表示するだけで、実際にストロークを描く処理は未実装（今後の拡張）。
- *
- * 将来スマホ側から座標を受け取ってそのまま描画できるよう、
- * 内部の <canvas> を ref として外に渡せる形にしてある。
+ * 「白いキャンバス + 灰色の枠」の表示と、高DPI 対応のサイズ調整までを担当する。
+ * 何を描くかは知らず、内部の <canvas> を ref として外に渡すことで
+ * 描画側（Renderer）と接続できるようにしてある。
  */
-export const CanvasSurface = forwardRef<HTMLCanvasElement>(
-  function CanvasSurface(_props, forwardedRef) {
+export const CanvasSurface = forwardRef<HTMLCanvasElement, CanvasSurfaceProps>(
+  function CanvasSurface({ onResize }, forwardedRef) {
     const containerRef = useRef<HTMLDivElement>(null);
     const localCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+    // --- 追加: 最新のコールバックを ref に保持する ---
+    // こうしておくと下の useEffect の依存配列を空のまま維持でき、
+    // 親の再レンダーで ResizeObserver が張り直されるのを防げる
+    const onResizeRef = useRef(onResize);
+    onResizeRef.current = onResize;
 
     useEffect(() => {
       const container = containerRef.current;
@@ -34,6 +49,10 @@ export const CanvasSurface = forwardRef<HTMLCanvasElement>(
 
         const ctx = canvas.getContext("2d");
         ctx?.scale(dpr, dpr);
+
+        // 追加: コンテキストが CSS px で描画できる状態になった後に通知する。
+        // 消えたビットマップを描き直す責務は受け取り側にある
+        onResizeRef.current?.({ width, height });
       };
 
       resize();
