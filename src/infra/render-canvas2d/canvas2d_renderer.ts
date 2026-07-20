@@ -13,12 +13,45 @@
 
 import type { Renderer } from "../../domain/ports/renderer";
 import type { Scene } from "../../domain/scene/scene";
-import type { Stroke } from "../../domain/stroke/stroke";
+import type { Stroke, KindOfTool } from "../../domain/stroke/stroke";
 import type { ScreenPoint } from "../../domain/schema_common/point";
 import { worldToScreen, worldLengthToScreen } from "../../domain/camera/camera";
 
 /** ペンの色。色選択の機能がまだないため、全ストローク共通の固定値 */
 const STROKE_COLOR = "#222222";
+
+/**
+ * ストローク種別ごとの描画方針（Strategy）。
+ *
+ * 種別で変わるのは「合成モードと色の設定」だけで、点列をドット/折れ線にする
+ * 幾何は共通。その差分だけを prepare に閉じ込め、drawStroke は種別で分岐せず
+ * 「方針を適用 → 共通の幾何描画」で済ませる。将来ツールが増えても、この
+ * Record に 1 項目足すだけで drawStroke 本体は変えずに済む。
+ */
+type StrokeRenderStrategy = {
+    /** 幾何を描く前に、合成モードと色を context へ設定する */
+    prepare(context: CanvasRenderingContext2D): void;
+}
+
+const STROKE_RENDER_STRATEGIES: Record<KindOfTool, StrokeRenderStrategy> = {
+    // 通常合成（source-over）でそのまま上に重ねて描く
+    PEN_DEFAULT: {
+        prepare(context) {
+            context.globalCompositeOperation = "source-over";
+            context.fillStyle = STROKE_COLOR;
+            context.strokeStyle = STROKE_COLOR;
+        },
+    },
+    // destination-out で「形のぶんだけ下（＝先に積まれた）の絵を抜く」。
+    // 色は無視されるが、アンチエイリアス縁まで確実に不透明で抜くため色も設定する
+    ERASE_DEFAULT: {
+        prepare(context) {
+            context.globalCompositeOperation = "destination-out";
+            context.fillStyle = STROKE_COLOR;
+            context.strokeStyle = STROKE_COLOR;
+        },
+    },
+};
 
 /**
  * 概要: 指定した canvas に描画する Renderer を作るファクトリ。
@@ -51,7 +84,9 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
      * 1. 全点を world→screen 変換して配列に集める
      *    （Stroke は点列を直接公開せず出口が forEachPoint だけのため、一旦集める）
      * 2. 線幅をワールド単位から画面 px へ変換する
-     * 3. 点が 1 つだけならドット、2 つ以上なら折れ線として描く
+     * 3. save し、種別ごとの描画方針（Strategy）で合成モード・色を設定する
+     * 4. 点が 1 つだけならドット、2 つ以上なら折れ線として描く（幾何は種別共通）
+     * 5. restore で状態を戻す（合成モードを次のストロークへ持ち越さない）
      *
      * 引数 scene: カメラの参照元 / 引数 stroke: 描くストローク
      * 戻り値: なし（canvas への描画という副作用のみ）
@@ -61,29 +96,34 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         stroke.forEachPoint((point) => screenPoints.push(worldToScreen(scene.camera, point)));
         // 線幅は radius（ワールド単位）から毎回計算する。ズームに合わせて
         // 見た目の太さも変わる＝「紙に描いた絵を拡大する」直感に合わせるため
-        const screenLineWidth = worldLengthToScreen(scene.camera, stroke.radius * 2);
+        const screenLineWidth = worldLengthToScreen(scene.camera, stroke.style.radius * 2);
 
-        // 1 点だけのストローク（クリックのみ）は線分にならず stroke() では
-        // 何も出ないため、ドット（円の塗り）として描く
+        // 状態を退避 → 種別ごとの方針で合成モード・色を設定 → 共通の幾何を描く。
+        // 末尾で必ず restore し、方針が変えた合成モードを次のストロークへ持ち越さない
+        // （分岐は早期 return せず、必ず末尾の restore へ合流させる）。
+        context.save();
+        STROKE_RENDER_STRATEGIES[stroke.style.kind].prepare(context);
+
         if (screenPoints.length === 1) {
+            // 1 点だけのストローク（クリックのみ）は線分にならず stroke() では
+            // 何も出ないため、ドット（円の塗り）として描く
             context.beginPath();
             context.arc(screenPoints[0].x, screenPoints[0].y, screenLineWidth / 2, 0, Math.PI * 2);
-            context.fillStyle = STROKE_COLOR;
             context.fill();
-            return;
+        } else {
+            context.beginPath();
+            context.moveTo(screenPoints[0].x, screenPoints[0].y);
+            for (const screenPoint of screenPoints.slice(1)) {
+                context.lineTo(screenPoint.x, screenPoint.y);
+            }
+            context.lineWidth = screenLineWidth;
+            // 点列を折れ線で繋ぐため、角と端を丸めて手描きの見た目に近づける
+            context.lineCap = "round";
+            context.lineJoin = "round";
+            context.stroke();
         }
 
-        context.beginPath();
-        context.moveTo(screenPoints[0].x, screenPoints[0].y);
-        for (const screenPoint of screenPoints.slice(1)) {
-            context.lineTo(screenPoint.x, screenPoint.y);
-        }
-        context.strokeStyle = STROKE_COLOR;
-        context.lineWidth = screenLineWidth;
-        // 点列を折れ線で繋ぐため、角と端を丸めて手描きの見た目に近づける
-        context.lineCap = "round";
-        context.lineJoin = "round";
-        context.stroke();
+        context.restore();
     };
 
     /**
