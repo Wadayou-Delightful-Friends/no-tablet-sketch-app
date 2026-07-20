@@ -18,14 +18,17 @@ export const createCommandDispatcher = (
 ) => {
     const applyCommand = (command: Command): void => {
         switch (command.type) {
-            case "write": {
+            case "write":
+            case "erase": {
+                // write と erase は座標変換も記録の仕方も同一で、描画側での
+                // 合成モードだけが違う。その違いはストロークの kind として持たせる。
                 // 入力は画面座標で届くので、その時点のカメラでワールド座標へ
                 // 変換してから記録する。以後カメラが動いても点は動かない。
-                // radius も同様に画面 px からワールド単位へ変換する（描いた瞬間の
-                // 見た目の太さを保ち、以後はズームに追従させるため）
+                // radius も同様に画面 px からワールド単位へ変換する
                 const worldPoint = screenToWorld(scene.camera, command.point);
                 const worldRadius = screenLengthToWorld(scene.camera, command.radius);
-                appendPoint(scene.strokes, command.stroke_id, worldRadius, worldPoint);
+                const kind = command.type === "write" ? "PEN_DEFAULT" : "ERASE_DEFAULT";
+                appendPoint(scene.strokes, command.stroke_id, worldPoint, { kind, radius: worldRadius });
                 break;
             }
             case "move":
@@ -34,12 +37,10 @@ export const createCommandDispatcher = (
             case "zoom":
                 scene.camera = zoomAt(scene.camera, command.anchor, command.factor, zoomSettings);
                 break;
-            case "erase":
-                // 未実装（今回のスコープ外）
-                break;
             default:
                 throw new Error(`Unknown command`);
         }
+        // コマンド適用後に必ず再描画する。
         renderer.render(scene);
     };
 
