@@ -96,7 +96,14 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
      * 引数 scene: 描く対象（カメラ + 全ストローク）/ 戻り値: なし
      */
     const renderWholeScene = (scene: Scene): void => {
+        // 表示層が高DPI対応で ctx.scale(dpr, dpr) を設定していても、バッキング
+        // ストア全体を確実に消すため、消去の間だけ変換を単位行列に戻す
+        // （canvas.width/height はデバイス px。スケール済みの座標系のまま解釈すると
+        //   dpr < 1 のときに右下が消し残る）
+        context.save();
+        context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, canvas.width, canvas.height);
+        context.restore();
         for (const stroke of scene.strokes) {
             drawStroke(scene, stroke);
         }
