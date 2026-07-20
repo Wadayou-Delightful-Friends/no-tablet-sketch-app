@@ -6,6 +6,7 @@ export function SelectPage() {
       <h1>Select</h1>
       <nav>
         <Link to="/display">Display</Link> | <Link to="/controller">Controller</Link>
+        | <Link to="/testDisplay">TestDisplay</Link> | <Link to="/testController">TestController</Link>
       </nav>
     </main>
   )
