@@ -90,9 +90,96 @@ SoA（x/y 別の `Float64Array`）へ **Stroke の内部だけで** 差し替え
 
 ---
 
+## 消しゴム対応（erase）
+
+設計判断と判断基準は [erase-design.md](erase-design.md) を参照。ここでは実装の内訳のみ記す。
+
+---
+
+## 65c74e8 — feat: ストロークに種別と画風を持たせ、erase コマンドを記録する
+
+**変更ファイル**: `src/domain/stroke/stroke.ts` / `src/domain/stroke/stroke_stack.ts` /
+`src/domain/command/command_dispatcher.ts`
+
+**内容**:
+- `KindOfTool`（`PEN_DEFAULT` / `ERASE_DEFAULT`）を新設。UI の `ToolType` とは別に、
+  「描画時に加算か減算か」という合成上の役割として定義する
+- `radius` と `kind` を `StrokeStyle` にまとめ、`Stroke` は `style` として保持する。
+  将来 color / opacity が増えても `createStroke` / `appendPoint` のシグネチャが安定する
+- dispatcher の `erase` を実装。write と座標変換・記録方法が同一のため case を統合し、
+  差分は `kind` として持たせる
+
+**理由**: 消しゴムを「破壊的にストロークを削除する」のではなく、write と対称の
+ストロークとして同じスタックに積む方式（追記型）を採用したため。append-only を
+保てるので undo は末尾 pop のままでよく、コマンドの replay でも同じ絵が再現できる。
+`Command` 自体はドメインへ下ろさず、境界で screen→world 変換とメタデータ破棄を行う。
+
+---
+
+## 4960d82 — feat: 消しゴムを destination-out で合成描画する
+
+**変更ファイル**: `src/infra/render-canvas2d/canvas2d_renderer.ts`
+
+**内容**:
+- ERASE を `globalCompositeOperation = "destination-out"` で合成する
+- 種別ごとに変わるのは合成モードと色だけで幾何は共通のため、その差分だけを
+  `StrokeRenderStrategy.prepare` に閉じ込め、`drawStroke` から種別分岐を無くした
+- テーブルを `Record<KindOfTool, StrokeRenderStrategy>` にすることで、種別追加時に
+  strategy の実装が型で必須になり実装漏れを検出できる
+- 1 ストロークごとに `save`/`restore` で状態を局所化。1 点ドット分岐の早期 `return` は
+  `restore` が飛ぶため `if/else` に組み替え、全経路が `restore` へ合流するようにした
+
+**理由**: immediate mode（毎フレーム全消し→積み順に再描画）ではピクセルを直接
+削っても次の render で戻るため、消しゴムは Scene 側の表現として描画時に合成する。
+積み順に描く性質から「erase より前に積まれた絵だけが抜ける」が自然に成立し、
+当たり判定を持たずに部分消しが実現できる。
+
+---
+
+## 1319c62 — feat: 動作確認用に E+ドラッグを消しゴムへ割り当てる
+
+**変更ファイル**: `src/features/sketch/sketch_input.ts`
+
+**内容**: E を押しながら左ドラッグで erase。種別は pointerdown 時に確定し、
+途中で E を離しても 1 本は同じ種別で描き切る。write と erase は type と radius だけが
+違うため `buildStrokeCommand` に集約。消しゴム半径は目視確認しやすい 12px（ペンは 2px）。
+
+**理由**: `sketch_input` は通信層が入るまでの足場でありツールセレクタとの本配線は
+行わない。当初は右ドラッグに割り当てたが、トラックパッドでは右ボタンドラッグが
+扱いにくいため Space=移動と同じ修飾キー方式へ変更した。
+
+---
+
+## aba4e0a — docs: 消しゴムの設計判断と判断基準を記録
+
+**変更ファイル**: `docs/feature_canvas/002_inprove_render/erase-design.md`（新規）
+
+**内容**: immediate mode では「消す」がピクセル操作にできないという前提から、
+非破壊・追記型の採用、Stroke が持つのはツールではなく合成の役割であること、
+Command を境界で止めて `StrokeStyle` に集約した理由、save/restore による状態の局所化、
+Strategy の分割基準までを、結論だけでなく判断基準として記録。保留事項も明記した。
+
+---
+
+## 82c61f9 — test: ストロークの新シグネチャへ追従し、消しゴムのテストを追加
+
+**変更ファイル**: `test/stroke_stack.test.ts` / `test/command_dispatcher.test.ts`
+
+**内容**: `appendPoint` / `Stroke` のシグネチャ変更に `test/` が追従しておらず、
+型エラー11件で `test/unit.html` が実行できない状態だったため修正した。
+あわせて消しゴムの正しさの前提を守るテストを 5 件追加（画風は新規ストロークにだけ
+適用される / write・erase が積み順を保って混在する / 種別が正しく記録される）。
+
+**反省点**: `tsc -b` は `src` のみを対象とするため、`pnpm build` では `test/` の
+破壊を検出できない。ドメインのシグネチャを変更したら `test/` の追従を明示的に
+確認する必要がある（今回は 65c74e8 の時点で壊れていたことに後から気づいた）。
+
+---
+
 ## 検証（最終状態）
 
 - `pnpm build` ✅ / `pnpm lint` ✅
-- `test/unit.html`: **ALL PASS (21 tests)** ✅
+- `test/unit.html`: **ALL PASS (26 tests)** ✅
 - `test/demo.html`: エラーなし（ユーザー確認済み）。起動直後の translation が
   キャンバス中央 (600, 400)、ホイールで scale が 8.00 / 0.13(=1/8) で停止することを確認
+- 消しゴム（`/display`）: 描画・消去・消しゴム後の重ね描きをユーザー確認済み
