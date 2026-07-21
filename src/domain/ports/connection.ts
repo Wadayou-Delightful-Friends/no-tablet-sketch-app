@@ -6,7 +6,7 @@ export interface Connection {
   start(roomId: string, role: Role): void;
 
   // 自分の参加成功（controllerなら displayId が来る＝offerの相手）
-  onDisplayJoined(cb: (info: { roomId: string; displayId?: string }) => void): void;
+  onJoined(cb: (info: { roomId: string; displayId?: string }) => void): void;
 
   // 他のピアが入ってきた（Display側で使う）
   onPeerJoined(cb: (peerId: string) => void): void;
