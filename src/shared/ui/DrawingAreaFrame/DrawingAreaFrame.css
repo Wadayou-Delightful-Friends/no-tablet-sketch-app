@@ -13,6 +13,8 @@
 .drawing-area-frame {
   position: relative;
   width: 100%;
+  pointer-events: auto;
+  touch-action: none;
 }
 
 .drawing-area-frame__corner {
