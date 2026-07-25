@@ -12,21 +12,21 @@ import type { ToolType } from "../../types/tool";
  * DisplayPage は一切変更不要です）。
  *
  *   export function useIncomingSelectedTool(): ToolType {
- *     const [tool, setTool] = useState<ToolType>("pen");
+ *     const [changed_tool, setTool] = useState<ToolType>("pen");
  *
  *     useEffect(() => {
  *       const socket = ...; // 既存の接続を利用
  *       const handleMessage = (event: MessageEvent) => {
  *         const data = JSON.parse(event.data);
  *         if (data.type === "tool-changed") {
- *           setTool(data.tool as ToolType);
+ *           setTool(data.changed_tool as ToolType);
  *         }
  *       };
  *       socket.addEventListener("message", handleMessage);
  *       return () => socket.removeEventListener("message", handleMessage);
  *     }, []);
  *
- *     return tool;
+ *     return changed_tool;
  *   }
  * ============================================================
  */
