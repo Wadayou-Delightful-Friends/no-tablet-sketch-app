@@ -17,6 +17,8 @@ import { createCanvas2dRenderer } from "../../infra/render-canvas2d/canvas2d_ren
 import type { Renderer } from "../../domain/ports/renderer";
 import { DEFAULT_ZOOM_SETTINGS } from "../../domain/camera/camera";
 import { attachSketchInput } from "./sketch_input";
+import { startDisplay } from "../session/display-session";
+import { parseCommand } from "../../domain/command/command_validator";
 
 export function useSketchCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -38,6 +40,28 @@ export function useSketchCanvas() {
     const renderer = createCanvas2dRenderer(canvas);
     const dispatcher = createCommandDispatcher(scene, renderer, DEFAULT_ZOOM_SETTINGS);
     const detachInput = attachSketchInput(canvas, dispatcher.applyCommand);
+
+    startDisplay("test-room", (peerId, msg) => {
+      console.log("受信したメッセージ on useSketchCanvas:", peerId, msg);
+      // パース
+      const command = parseCommand(msg);
+      // エラーチェック
+      if (command instanceof Error) {
+        console.warn("受信コマンドのパースエラー:", command.message);
+        return;
+      }
+      // 正規化座標をスクリーン比率に変換して dispatcher に渡す
+      if(command.type === "write" || command.type === "erase") {
+        const normalizedX = command.point.x * canvas.clientWidth;
+        const normalizedY = command.point.y * canvas.clientHeight;
+        const transformedCommand = { ...command, point: { x: normalizedX, y: normalizedY } };
+        // 適用
+        dispatcher.applyCommand(transformedCommand);
+        return;
+      }
+      // 適用
+      dispatcher.applyCommand(command);
+    });
 
     sessionRef.current = { scene, renderer };
     renderer.render(scene);

@@ -1,9 +1,9 @@
 import type { Command, WriteCommand } from "./command";
 
 /**
+ * 問題なければ null、駄目なら理由を持つ Error を返す。
  * value が ScreenPoint（{ x: number; y: number }）かをチェックする。
  * field はエラーメッセージ用のフィールド名（例: "point"）。
- * 問題なければ null、駄目なら理由を持つ Error を返す。
  */
 const validateScreenPoint = (value: unknown, field: string): Error | null => {
     if (typeof value !== "object" || value === null) {
@@ -19,11 +19,11 @@ const validateScreenPoint = (value: unknown, field: string): Error | null => {
 };
 
 /**
+ * 全て通れば null、駄目なら理由を持つ Error を返す。
  * write コマンドのパラメータをチェックする。
- * チェックごとに理由を持つ Error を返し、全て通れば null を返す。
  * （値の範囲チェックは値域が決まり次第、各項目の下に追記する）
  */
-const ValidateCommandWrite = (command: unknown): Error | null => {
+const validateWriteCommand = (command: unknown): Error | null => {
     // --- 型チェック ---
     if (typeof command !== "object" || command === null) {
         return Error("write: command must be an object");
@@ -60,19 +60,23 @@ const ValidateCommandWrite = (command: unknown): Error | null => {
 };
 
 
-export const commandEncoderWithValidate = (parsed_json_command: unknown): Command | Error => {
-    if (typeof parsed_json_command !== "object" || parsed_json_command === null) {
+/**
+ * 受信した JSON.parse 済みの値を Command へ変換する。
+ * 変換できれば Command、駄目なら理由を持つ Error を返す。
+ */
+export const parseCommand = (parsedJson: unknown): Command | Error => {
+    if (typeof parsedJson !== "object" || parsedJson === null) {
         return Error("Invalid command format");
     }
-    if (!("type" in parsed_json_command)) {
+    if (!("type" in parsedJson)) {
         return Error("Command type is missing");
     }
-    if  (parsed_json_command.type === "write") {
-        const error = ValidateCommandWrite(parsed_json_command);
+    if  (parsedJson.type === "write") {
+        const error = validateWriteCommand(parsedJson);
         if (error) {
             return error;
         }
-        const command = parsed_json_command as WriteCommand;
+        const command = parsedJson as WriteCommand;
         return {
             type: "write",
             controller_id: command.controller_id,
