@@ -1,7 +1,7 @@
 import { useState } from "react";
-import {CanvasSurface} from "../../shared/ui/canvas/CanvasSurface";
+import { CanvasSurface } from "../../shared/ui/canvas/CanvasSurface";
 // --- 追加: キャンバスを描画一式（Scene / Renderer / Dispatcher）へ接続する ---
-import {useSketchCanvas} from "../../features/sketch/useSketchCanvas";
+import { useSketchCanvas } from "../../features/sketch/useSketchCanvas";
 import { SelectedToolBadge } from "../../shared/ui/SelectedToolBadge/SelectedToolBadge";
 import { QrConnectModal } from "../../shared/ui/QrConnectModal/QrConnectModal";
 import { useIncomingSelectedTool } from "../../shared/model/selectedTool/useIncomingSelectedTool";
