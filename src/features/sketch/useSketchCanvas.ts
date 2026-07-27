@@ -5,8 +5,10 @@
  * Scene は可変オブジェクトのため、再レンダーのたびに作り直すと描いた絵が消える。
  * そこで ref に保持し、マウント時に一度だけ組み立てる。
  *
- * 将来スマホからのコマンド受信を繋ぐ際も、dispatcher を持つこの場所が接続先になる
- * （入力源が sketch_input から受信アダプタへ差し替わるだけで、このフックは残る）。
+ * 遠隔からのコマンドは、このフックが公開する handleRemoteMessage を
+ * 入力口として受け取る。セッションの生成・停止はページ側の責務にして、
+ * フック自身は通信手段（WebRTC / signaling）を一切知らない。
+ * これにより入力源を実接続 / テスト用フェイク / リプレイに差し替えられる。
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -17,13 +19,18 @@ import { createCanvas2dRenderer } from "../../infra/render-canvas2d/canvas2d_ren
 import type { Renderer } from "../../domain/ports/renderer";
 import { DEFAULT_ZOOM_SETTINGS } from "../../domain/camera/camera";
 import { attachSketchInput } from "./sketch_input";
-import { startDisplay } from "../session/display-session";
 import { parseCommand } from "../../domain/command/command_validator";
+
+type Dispatcher = ReturnType<typeof createCommandDispatcher>;
 
 export function useSketchCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  /** マウント後に組み立てる描画一式。リサイズ時の再描画で参照する */
-  const sessionRef = useRef<{ scene: Scene; renderer: Renderer } | null>(null);
+  /** マウント後に組み立てる描画一式。リサイズ時の再描画と受信適用で参照する */
+  const sessionRef = useRef<{
+    scene: Scene;
+    renderer: Renderer;
+    dispatcher: Dispatcher;
+  } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -41,35 +48,45 @@ export function useSketchCanvas() {
     const dispatcher = createCommandDispatcher(scene, renderer, DEFAULT_ZOOM_SETTINGS);
     const detachInput = attachSketchInput(canvas, dispatcher.applyCommand);
 
-    startDisplay("test-room", (peerId, msg) => {
-      console.log("受信したメッセージ on useSketchCanvas:", peerId, msg);
-      // パース
-      const command = parseCommand(msg);
-      // エラーチェック
-      if (command instanceof Error) {
-        console.warn("受信コマンドのパースエラー:", command.message);
-        return;
-      }
-      // 正規化座標をスクリーン比率に変換して dispatcher に渡す
-      if(command.type === "write" || command.type === "erase") {
-        const normalizedX = command.point.x * canvas.clientWidth;
-        const normalizedY = command.point.y * canvas.clientHeight;
-        const transformedCommand = { ...command, point: { x: normalizedX, y: normalizedY } };
-        // 適用
-        dispatcher.applyCommand(transformedCommand);
-        return;
-      }
-      // 適用
-      dispatcher.applyCommand(command);
-    });
-
-    sessionRef.current = { scene, renderer };
+    sessionRef.current = { scene, renderer, dispatcher };
     renderer.render(scene);
 
     return () => {
       detachInput();
       sessionRef.current = null;
     };
+  }, []);
+
+  /**
+   * 遠隔から届いたメッセージを描画へ流す入力口。
+   * 呼び出し側が Receiver（や任意の入力源）に繋ぎ込む前提で、
+   * 参照が変わらないよう useCallback で固定している。
+   */
+  const handleRemoteMessage = useCallback((peerId: string, msg: unknown) => {
+    const session = sessionRef.current;
+    const canvas = canvasRef.current;
+    // 組み立て前に届いた分は捨てる（描画先がまだない）
+    if (session === null || canvas === null) return;
+
+    console.log("受信したメッセージ on useSketchCanvas:", peerId, msg);
+    // パース
+    const command = parseCommand(msg);
+    // エラーチェック
+    if (command instanceof Error) {
+      console.warn("受信コマンドのパースエラー:", command.message);
+      return;
+    }
+    // 正規化座標をスクリーン比率に変換して dispatcher に渡す
+    if (command.type === "write" || command.type === "erase") {
+      const normalizedX = command.point.x * canvas.clientWidth;
+      const normalizedY = command.point.y * canvas.clientHeight;
+      const transformedCommand = { ...command, point: { x: normalizedX, y: normalizedY } };
+      // 適用
+      session.dispatcher.applyCommand(transformedCommand);
+      return;
+    }
+    // 適用
+    session.dispatcher.applyCommand(command);
   }, []);
 
   /**
@@ -87,5 +104,5 @@ export function useSketchCanvas() {
     session.renderer.render(session.scene);
   }, []);
 
-  return { canvasRef, handleResize };
+  return { canvasRef, handleResize, handleRemoteMessage };
 }

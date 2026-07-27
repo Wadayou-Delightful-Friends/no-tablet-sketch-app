@@ -14,21 +14,20 @@ import "./DisplayPage.css";
  * 枠の左上に表示する（ツールの選択操作自体はスマホ側のみで行う）。
  */
 export function DisplayPage() {
-  // 追加: canvas の ref とリサイズ時の再描画ハンドラを受け取る
-  const { canvasRef, handleResize } = useSketchCanvas();
+  // 追加: canvas の ref・リサイズ時の再描画ハンドラ・遠隔コマンドの入力口を受け取る
+  const { canvasRef, handleResize, handleRemoteMessage } = useSketchCanvas();
   const selectedTool = useIncomingSelectedTool();
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  // セッションの生成はページの責務。受信を描画へ繋ぐ配線もここで行う
   useEffect(() => {
     const { receiver } = startDisplay(
       (id) => setRoomId(id),        // サーバーが部屋発行 → QR表示
       () => setIsConnected(true),   // スマホ接続 → モーダルを閉じる
     );
-    receiver.onMessage((peerId, msg) => {
-      console.log("届いた:", peerId, msg);   // TODO: 描画へ繋ぐ
-    });
-  }, []);
+    receiver.onMessage(handleRemoteMessage);
+  }, [handleRemoteMessage]);
 
   return (
     <main className="display-page">
