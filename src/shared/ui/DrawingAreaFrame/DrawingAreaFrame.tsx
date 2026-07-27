@@ -1,4 +1,5 @@
 import "./DrawingAreaFrame.css";
+import type { PointerEventHandler } from "react";
 
 /**
  * PC側の描画エリア（画面全体）の縦横比。
@@ -9,19 +10,37 @@ import "./DrawingAreaFrame.css";
  */
 const DESKTOP_ASPECT_RATIO = 16 / 9;
 
+type DrawingAreaFrameProps = {
+  onPointerDown?: PointerEventHandler<HTMLDivElement>;
+  onPointerMove?: PointerEventHandler<HTMLDivElement>;
+  onPointerUp?: PointerEventHandler<HTMLDivElement>;
+  onPointerCancel?: PointerEventHandler<HTMLDivElement>;
+};
+
 /**
  * スマホ画面上に、PCの描画エリア（画面全体）に対応する範囲を
  * カメラのビューファインダーのような4隅の角で示すオーバーレイ。
  *
- * 表示だけが目的で操作は受け付けないため pointer-events: none にしてあり、
- * 下に重なる ToolButton 等のタップを妨げない。
+ * Pointer Eventハンドラが渡された場合は、Controllerの描画入力領域としても使う。
+ *
+ * @param props Controller入力を受け取るPointer Eventハンドラ
+ * @returns PC描画領域に対応する枠
  */
-export function DrawingAreaFrame() {
+export function DrawingAreaFrame({
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+}: DrawingAreaFrameProps) {
   return (
     <div className="drawing-area-frame-wrapper">
       <div
         className="drawing-area-frame"
         style={{ aspectRatio: DESKTOP_ASPECT_RATIO }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
       >
         <span className="drawing-area-frame__corner drawing-area-frame__corner--tl" />
         <span className="drawing-area-frame__corner drawing-area-frame__corner--tr" />

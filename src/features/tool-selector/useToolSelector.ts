@@ -41,8 +41,13 @@ function getLogicalY(clientX: number, clientY: number) {
  * 1. ボタンを pointerDown → 一定時間後（長押し確定）にメニューを開く
  * 2. 指を離さず pointerMove → 押した位置からの縦方向の移動量でホバー中ツールを算出
  * 3. pointerUp → その時点のホバー中ツールを選択ツールとして確定し、メニューを閉じる
+ *
+ * @param onSelectedToolChange 選択ツールが確定した時の通知先
+ * @returns 選択状態、メニュー状態、Pointer Eventハンドラ
  */
-export function useToolSelector() {
+export function useToolSelector(
+  onSelectedToolChange?: (selectedTool: ToolType) => void
+) {
   const [selectedTool, setSelectedTool] = useState<ToolType>("pen");
   const [menuOpen, setMenuOpen] = useState(false);
   const [hoverTool, setHoverTool] = useState<ToolType | null>(null);
@@ -121,13 +126,14 @@ export function useToolSelector() {
       // メニューが開く前に指を離した場合（=長押しに満たない）は何もしない
       if (menuOpen && hoverTool) {
         setSelectedTool(hoverTool);
+        onSelectedToolChange?.(hoverTool);
       }
 
       setMenuOpen(false);
       setHoverTool(null);
       resetGesture();
     },
-    [menuOpen, hoverTool, resetGesture]
+    [menuOpen, hoverTool, onSelectedToolChange, resetGesture]
   );
 
   const handlePointerCancel = useCallback(() => {
