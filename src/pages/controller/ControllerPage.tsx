@@ -21,6 +21,7 @@ export function ControllerPage() {
   const sendDrawRef = useRef<(message: unknown) => void>(() => {});
 
   useEffect(() => {
+    if(!roomId) return;
     const { sendDraw } = startController(roomId);
     sendDrawRef.current = sendDraw;
   }, [roomId]);
