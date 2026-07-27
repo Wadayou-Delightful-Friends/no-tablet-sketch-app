@@ -1,7 +1,10 @@
-import placeholderQr from "../../assets/qr/placeholder-qr.png";
+import { QRCodeSVG } from "qrcode.react";
 import "./QrConnectModal.css";
 
+
 type QrConnectModalProps = {
+  roomId: string;        // ★これを追加
+};
   /**
    * 「次へ」ボタン押下時のコールバック。
    *
@@ -15,8 +18,6 @@ type QrConnectModalProps = {
    * 案内文、背景シャドウ）はそのまま流用できます。
    * ============================================================
    */
-  onDismiss: () => void;
-};
 
 /**
  * アプリ起動時に表示する、スマートフォンとの接続用QRコードのポップアップ。
@@ -24,14 +25,15 @@ type QrConnectModalProps = {
  * 現時点ではQRコードを読み取って自動的に接続する仕組みが無いため、
  * 仮の「次へ」ボタンで手動的にポップアップを閉じられるようにしている。
  */
-export function QrConnectModal({ onDismiss }: QrConnectModalProps) {
+export function QrConnectModal({ roomId }: QrConnectModalProps) {
+  const joinUrl = `${location.origin}/controller?room=${roomId}`;
   return (
     <div className="qr-connect-modal-backdrop">
       <div className="qr-connect-modal" role="dialog" aria-modal="true">
-        <img
+        <QRCodeSVG
           className="qr-connect-modal__qr"
-          src={placeholderQr}
-          alt="スマートフォン接続用QRコード"
+          value={joinUrl}
+          size={240}
         />
         <p className="qr-connect-modal__guide">
           お手持ちのスマートフォンでQRコードを読み込み、
@@ -40,13 +42,7 @@ export function QrConnectModal({ onDismiss }: QrConnectModalProps) {
         </p>
 
         {/* TODO: QRコード読み取りによる接続が実装され次第、このボタンごと削除する */}
-        <button
-          type="button"
-          className="qr-connect-modal__next-button"
-          onClick={onDismiss}
-        >
-          次へ（仮）
-        </button>
+        
       </div>
     </div>
   );

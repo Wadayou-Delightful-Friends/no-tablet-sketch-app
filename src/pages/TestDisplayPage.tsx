@@ -3,8 +3,11 @@ import { startDisplay } from "../features/session/display-session";
 
 export function TestDisplayPage() {
   useEffect(() => {
-    startDisplay("test-room", (peerId, msg) => {
-      console.log("📥 届いた:", peerId, msg);
+    const { receiver } = startDisplay((roomId) => {
+      console.log("発行されたroomId:", roomId);   // ← onRoomReady の中身
+    });
+    receiver.onMessage((peerId, msg) => {
+      console.log("届いた:", peerId, msg);
     });
   }, []);
 

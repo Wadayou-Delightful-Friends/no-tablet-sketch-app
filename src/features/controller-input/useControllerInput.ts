@@ -92,7 +92,13 @@ export function useControllerInput({
   selectedTool,
   sendCommand,
 }: UseControllerInputParameters) {
-  const [controllerId] = useState(() => crypto.randomUUID());
+  //const [controllerId] = useState(() => crypto.randomUUID());
+  /**
+   * ローカルスマホ接続の際は下記のコードのコメントアウトして下記のcontrollerIdをコメントアウトする
+   */
+ const [controllerId] = useState(
+  () => crypto.randomUUID?.() ?? `ctrl-${Math.random().toString(36).slice(2, 10)}`
+);
   const commandSequenceRef = useRef(0);
   const strokeSequenceRef = useRef(0);
   const activePointerIdRef = useRef<number | null>(null);
