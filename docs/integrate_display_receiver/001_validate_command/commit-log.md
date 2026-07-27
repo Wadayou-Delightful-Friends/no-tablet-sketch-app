@@ -33,7 +33,36 @@
 
 ---
 
+## 9ef6e98 — feat: erase / move / zoom コマンドのバリデータを追加
+
+**変更ファイル**: `src/domain/command/command_validator.ts`
+
+**内容**:
+- 全コマンド共通の `controller_id` / `seq` / `timestamp` を
+  `validateCommonFields(command: object, type: string)` に集約。引数を `unknown` では
+  なく `object` にして、呼び出し側で絞り込んでから渡す前提にすることで `in` による
+  絞り込みがキャストなしで効く
+- `validateWriteCommand` を `validateStrokeCommand(command, type: "write" | "erase")`
+  に一般化。write と erase は `stroke_id` / `radius` / `point` まで構造が完全に同一で、
+  違いはエラーメッセージ用の名前だけのため共用する
+- `validateMoveCommand`（`delta`）と `validateZoomCommand`（`anchor` + `factor`）は
+  構造が違うので個別に追加
+- `parseCommand` に 4 分岐を実装。各分岐で検証後にフィールドを 1 つずつ組み直す
+  （余計なフィールドを持ち込まないホワイトリスト方式）は write と同じ
+- fallback を `Error("Not implemented")` から
+  `Error(\`Unknown command type: ${...}\`)` へ変更。4 種すべて実装済みになり、
+  ここに到達するのは想定外の type だけになったため
+- 細かい値チェックは値域が未定のため TODO コメントで枠だけ残す
+
+**理由**: 設計判断は [command-validation.md](command-validation.md) の
+「追記 — erase / move / zoom への展開」を参照。
+
+---
+
 ## 検証（最終状態）
 
-- 値域は未定のため型チェックのみ実装。値チェックは TODO 枠で保留
-- erase / move / zoom のバリデータは未実装（今後、同じ「Error を返す」パターンで展開）
+- `pnpm build`（`tsc -b && vite build`）成功 / `pnpm lint` 警告なし
+- 4 コマンドすべての型チェックを実装。値チェックのうち **座標の範囲**は
+  [002_normalize_coordinates](../002_normalize_coordinates/commit-log.md) で実装済み
+- `radius` / `factor` / `seq` / `timestamp` の値域は未定のため TODO 枠で保留
+- `parseCommand` に対する自動テストは未作成
