@@ -6,11 +6,19 @@ import { socket } from "./socket";
  */
 export function createSocketIOConnection(): Connection {
     return {
-        //Displayがシグナリングサーバーに到達する
+
+        createRoom() {
+         socket.emit("create-room");
+        },
+        onRoomCreated(cb) {
+          socket.on("room-created", (p: { roomId: string }) => cb(p.roomId));
+        },
+
+        //コントローラーがシグナリングサーバーの部屋に到達する
         start(roomId, role) {
             socket.emit("join", {roomId, role});
         },
-        //Displayが部屋に入ったことがわかる関数プロパティ
+        //が部屋に入ったことがわかる関数プロパティ
         onJoined(cb) {
            socket.on("joined", (info: { roomId: string; displayId?: string }) => cb(info));
         },

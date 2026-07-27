@@ -4,6 +4,10 @@ import { rtcConfig } from "./rtc-config";
 import type { Sender } from "../../domain/ports/sender";
 import type { Receiver } from "../../domain/ports/receiver";
 
+
+
+
+
 // 型を定義
 type SignalIncoming = {
   from: string;
@@ -19,20 +23,31 @@ type SignalIncoming = {
  * 
  */
 export function createRtcTransport() {
+
+  const listeners = new Set<(peerId: string, msg: unknown) => void>();
+
   type Entry = {
     pc: RTCPeerConnection;
     channel?: RTCDataChannel;
     pending: RTCIceCandidateInit[]; // remote未設定時にICEを貯める
   };
   const peers = new Map<string, Entry>();
-  let onMsg: (peerId: string, msg: unknown) => void = () => {};
+  //let onMsg: (peerId: string, msg: unknown) => void = () => {};
 
   // DataChannel の受信口をセット
   function setupChannel(peerId: string, ch: RTCDataChannel) {
     peers.get(peerId)!.channel = ch;
-    ch.onmessage = (e) => onMsg(peerId, JSON.parse(e.data));
+    ch.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    listeners.forEach((fn) => fn(peerId, msg));   // ← 全員に配る
+  };
   }
-
+/**
+ * 
+ * @param peerId 繋ぎ相手のID 誰と繋ぐかがわかる
+ * @param initiator webrtc接続でさきに通信を試みた方
+ * @returns 
+ */
   // 相手ごとに RTCPeerConnection を作る
   function createPeer(peerId: string, initiator: boolean): Entry {
     const pc = new RTCPeerConnection(rtcConfig);
@@ -59,7 +74,7 @@ export function createRtcTransport() {
   }
 
   // 相手からの signal（offer/answer/ICE）を捌く
-  //socket.off("signal");
+  socket.off("signal");
   socket.on("signal", async ({ from, description, candidate }: SignalIncoming ) => {
     const entry = peers.get(from) ?? createPeer(from, false);
     const { pc } = entry;
@@ -67,7 +82,7 @@ export function createRtcTransport() {
       await pc.setRemoteDescription(description);
       for (const c of entry.pending) await pc.addIceCandidate(c);
       entry.pending = [];
-      if (description.type === "offer") {
+      if (description.type === "offer"&& pc.signalingState === "have-remote-offer") {
         await pc.setLocalDescription(await pc.createAnswer());
         socket.emit("signal", { to: from, description: pc.localDescription });
       }
@@ -85,7 +100,10 @@ export function createRtcTransport() {
     },
   };
   const receiver: Receiver = {
-    onMessage: (cb) => { onMsg = cb; },
+    onMessage: (cb) => { 
+       listeners.add(cb);              // 名簿に追加
+    return () => listeners.delete(cb);  // 解除関数を返す },
+    },
   };
   function connect(peerId: string) {
     createPeer(peerId, true); // 発信側として接続開始（Controllerが使う）
