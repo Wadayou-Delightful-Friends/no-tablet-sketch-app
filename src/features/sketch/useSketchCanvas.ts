@@ -20,6 +20,7 @@ import type { Renderer } from "../../domain/ports/renderer";
 import { DEFAULT_ZOOM_SETTINGS } from "../../domain/camera/camera";
 import { attachSketchInput } from "./sketch_input";
 import { parseCommand } from "../../domain/command/command_validator";
+import { toScreenCommand } from "./normalized_command";
 
 type Dispatcher = ReturnType<typeof createCommandDispatcher>;
 
@@ -69,24 +70,16 @@ export function useSketchCanvas() {
     if (session === null || canvas === null) return;
 
     console.log("受信したメッセージ on useSketchCanvas:", peerId, msg);
-    // パース
+    // パース（ここで得られるのは正規化座標のコマンド）
     const command = parseCommand(msg);
     // エラーチェック
     if (command instanceof Error) {
       console.warn("受信コマンドのパースエラー:", command.message);
       return;
     }
-    // 正規化座標をスクリーン比率に変換して dispatcher に渡す
-    if (command.type === "write" || command.type === "erase") {
-      const normalizedX = command.point.x * canvas.clientWidth;
-      const normalizedY = command.point.y * canvas.clientHeight;
-      const transformedCommand = { ...command, point: { x: normalizedX, y: normalizedY } };
-      // 適用
-      session.dispatcher.applyCommand(transformedCommand);
-      return;
-    }
-    // 適用
-    session.dispatcher.applyCommand(command);
+    // 画面 px へ変換して適用する。基準はリサイズで変わるので、届いた時点の実サイズを使う
+    const viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
+    session.dispatcher.applyCommand(toScreenCommand(viewport, command));
   }, []);
 
   /**
