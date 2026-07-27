@@ -9,14 +9,14 @@ import type { ToolType } from "../../shared/types/tool";
 import "./ControllerPage.css";
 
 /** QRコードからroom IDを受け取る実装が入るまで、既存の通信サンプルと同じ部屋を使う。 */
-const TEMPORARY_ROOM_ID = "test-room";
+//const TEMPORARY_ROOM_ID = "test-room";
 
 /**
  * スマートフォン側で表示するページ。
  * 端末の向きに関わらず常に横画面のレイアウトで開始する。
  */
 export function ControllerPage() {
-  const roomId = new URLSearchParams(location.search).get("room") || TEMPORARY_ROOM_ID;
+  const roomId = new URLSearchParams(location.search).get("room"); 
   const [selectedTool, setSelectedTool] = useState<ToolType>("pen");
   const sendDrawRef = useRef<(message: unknown) => void>(() => {});
 
