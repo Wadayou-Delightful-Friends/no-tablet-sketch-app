@@ -2,10 +2,20 @@ import type { Command, WriteCommand, EraseCommand, MoveCommand, ZoomCommand } fr
 
 /**
  * 問題なければ null、駄目なら理由を持つ Error を返す。
- * value が ScreenPoint（{ x: number; y: number }）かをチェックする。
+ * value が NormalizedPoint（{ x: number; y: number }）かをチェックする。
  * field はエラーメッセージ用のフィールド名（例: "point"）。
+ *
+ * 位置（point / anchor）は 0〜1、差分（delta）は向きを持つので -1〜1 と
+ * 範囲が違うため、min / max を呼び出し側から渡す。
+ * 範囲外を弾くのは、描画領域の外へ飛んだ座標がそのままカメラ変換に入ると
+ * 見えない場所にストロークが積まれるため。
  */
-const validateScreenPoint = (value: unknown, field: string): Error | null => {
+const validateNormalizedPoint = (
+    value: unknown,
+    field: string,
+    min: number,
+    max: number,
+): Error | null => {
     if (typeof value !== "object" || value === null) {
         return Error(`${field} must be an object`);
     }
@@ -14,6 +24,13 @@ const validateScreenPoint = (value: unknown, field: string): Error | null => {
     }
     if (!("y" in value) || typeof value.y !== "number") {
         return Error(`${field}.y must be a number`);
+    }
+    // NaN は比較が常に false になるため、この形で書けば同時に弾ける
+    if (!(value.x >= min && value.x <= max)) {
+        return Error(`${field}.x must be between ${min} and ${max}`);
+    }
+    if (!(value.y >= min && value.y <= max)) {
+        return Error(`${field}.y must be between ${min} and ${max}`);
     }
     return null;
 };
@@ -65,14 +82,14 @@ const validateStrokeCommand = (command: unknown, type: "write" | "erase"): Error
     if (!("point" in command)) {
         return Error(`${type}: point is missing`);
     }
-    const pointError = validateScreenPoint(command.point, `${type}: point`);
+    // 位置なので 0〜1（描画領域の左上〜右下）
+    const pointError = validateNormalizedPoint(command.point, `${type}: point`, 0, 1);
     if (pointError) {
         return pointError;
     }
 
     // --- 値チェック（値域は未定。決まり次第ここに追加する） ---
     // TODO: radius は正の数か
-    // TODO: point は正規化座標（0〜1）の範囲に収まっているか
 
     return null;
 };
@@ -94,14 +111,11 @@ const validateMoveCommand = (command: unknown): Error | null => {
     if (!("delta" in command)) {
         return Error("move: delta is missing");
     }
-    const deltaError = validateScreenPoint(command.delta, "move: delta");
+    // 差分なので向きを持つ。1コマンドで動かせるのは最大でも描画領域1枚ぶん
+    const deltaError = validateNormalizedPoint(command.delta, "move: delta", -1, 1);
     if (deltaError) {
         return deltaError;
     }
-
-    // --- 値チェック（値域は未定。決まり次第ここに追加する） ---
-    // TODO: delta は有限値か（NaN / Infinity を弾く）
-    // TODO: 1コマンドあたりの移動量に上限を設けるか
 
     return null;
 };
@@ -123,7 +137,8 @@ const validateZoomCommand = (command: unknown): Error | null => {
     if (!("anchor" in command)) {
         return Error("zoom: anchor is missing");
     }
-    const anchorError = validateScreenPoint(command.anchor, "zoom: anchor");
+    // ズームの中心は表示領域内の位置なので 0〜1
+    const anchorError = validateNormalizedPoint(command.anchor, "zoom: anchor", 0, 1);
     if (anchorError) {
         return anchorError;
     }
@@ -134,7 +149,6 @@ const validateZoomCommand = (command: unknown): Error | null => {
     // --- 値チェック（値域は未定。決まり次第ここに追加する） ---
     // TODO: factor は正の有限値か（0 以下だと scale が壊れる）
     // TODO: 1コマンドあたりの倍率に上限・下限を設けるか
-    // TODO: anchor は表示領域内に収まっているか
 
     return null;
 };
@@ -144,6 +158,9 @@ const validateZoomCommand = (command: unknown): Error | null => {
  * 受信した JSON.parse 済みの値を Command へ変換する。
  * 変換できれば Command、駄目なら理由を持つ Error を返す。
  * 余計なフィールドを持ち込まないよう、検証後に必要な項目だけ組み直す。
+ *
+ * 座標は正規化されたままなので、描画に使う前に受信アダプタ
+ * （features/sketch/normalized_command.ts の toScreenCommand）で画面 px へ変換する。
  */
 export const parseCommand = (parsedJson: unknown): Command | Error => {
     if (typeof parsedJson !== "object" || parsedJson === null) {
