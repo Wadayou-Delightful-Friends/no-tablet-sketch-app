@@ -1,9 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- 拡大縮小・スクロールバウンスを抑制し、アプリらしい操作感にする -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- ホーム画面に追加した際、Safari的な見た目ではなく専用アプリ的な見た目で起動する -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <!-- ステータスバー（時計やバッテリー残量の帯）の色。black-translucent はコンテンツを裏まで敷き詰める -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- ホーム画面に表示されるアプリ名 -->
+    <meta name="apple-mobile-web-app-title" content="板タブ" />
+
     <title>no-tablet-sketch-app</title>
   </head>
   <body>
