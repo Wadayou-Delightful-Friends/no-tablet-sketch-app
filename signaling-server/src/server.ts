@@ -43,8 +43,27 @@ const io = new Server(httpServer, {
 
 io.on("connection", (socket: Socket) => {
   console.log(`[connect]    ${socket.id}`);
+    /* ---- 部屋を作る（DisplayがサーバーにやってきてroomId発行を依頼）---- */
+  socket.on("create-room", () => {
 
-  /* ---- 部屋に入る ---- */
+    if (socket.data.roomId) {
+    socket.emit("room-created", { roomId: socket.data.roomId });
+    return;
+    }
+
+    // サーバー側でroomIdを発行
+    const roomId = `room-${Math.random().toString(36).slice(2, 8)}`;
+
+    socket.join(roomId);
+    socket.data.roomId = roomId;
+    socket.data.role = "display";
+    roomDisplays.set(roomId, socket.id);
+
+    socket.emit("room-created", { roomId });   // 発行したidをDisplayに返す
+    console.log(`[create-room] ${socket.id} -> ${roomId}`);
+  })
+
+  /* ---- コントローラーが部屋に入る ---- */
   socket.on("join", ({ roomId, role }: JoinPayload) => {
     // 不正なペイロードは弾く
     if (!roomId || (role !== "display" && role !== "controller")) {
@@ -52,8 +71,9 @@ io.on("connection", (socket: Socket) => {
       return;
     }
     // --- Display として参加 ---
+    /** 
     if (role === "display") {
-      if (roomDisplays.has(roomId)) {
+   if (roomDisplays.has(roomId)) {
         socket.emit("join-error", { reason: "display already exists" });
         return;
       }
@@ -61,17 +81,17 @@ io.on("connection", (socket: Socket) => {
       socket.data.roomId = roomId;
       socket.data.role = "display";
       roomDisplays.set(roomId, socket.id);
-      socket.emit("display-joined", { roomId });
+      socket.emit("joined", { roomId });
       console.log(`[display]    ${socket.id} -> ${roomId}`);
       return;
-    }
+    }*/
 
     // --- Controller として参加 ---
     /**
      * roomDisplaysから、roomIdに該当するディスプレイをひっぱてコントローラーにもディスプレイもに書くブラウザが到達したことを通達する。
      */
 
-    const displayId = roomDisplays.get(roomId);
+    const displayId = roomDisplays.get(roomId);//roomIDがdisplay.idを検索する
     
     if (!displayId) {
      // socket.emit("no-display", { roomId }); // Displayがまだ居ない
