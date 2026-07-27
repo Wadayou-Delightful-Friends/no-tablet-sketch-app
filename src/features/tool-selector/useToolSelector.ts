@@ -70,21 +70,30 @@ export function useToolSelector(
   }, [clearLongPressTimer]);
 
   /**
-   * 押した位置からの相対Y座標を、TOOL_ORDER 上のインデックスへ変換する。
-   * 移動量ゼロ（＝長押し直後、まだ指を動かしていない状態）では
-   * 現在選択中のツールを指すように、選択中ツールのインデックスを基準にする。
+   * 指の現在位置（縦方向の座標）から、ホバー中のツールを判定する。
+   *
+   * ToolMenu の表示位置を基準に、指がどのツール項目の範囲にあるかを計算する。
+   * 現在選択中のツールを基準にした相対移動量ではなく、
+   * メニュー上の絶対位置で判定することで、どのツール選択後でも
+   * 他のツールへ移動しやすくする。
    */
   const resolveHoverTool = useCallback(
     (clientY: number): ToolType => {
-      const startY = startYRef.current ?? clientY;
-      const deltaY = clientY - startY;
-      const baseIndex = TOOL_ORDER.indexOf(selectedTool);
-      const rawIndex = baseIndex + Math.round(deltaY / STEP);
-      const clampedIndex = Math.min(Math.max(rawIndex, 0), TOOL_ORDER.length - 1);
+      const menuTop = 80; // ToolMenu.css の top と合わせる
+
+      const index = Math.floor(
+        (clientY - menuTop) / STEP
+      );
+
+      const clampedIndex = Math.min(
+        Math.max(index, 0),
+        TOOL_ORDER.length - 1
+      );
+
       return TOOL_ORDER[clampedIndex];
     },
-    [selectedTool]
-  );
+    []
+);
 
   const handlePointerDown = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
