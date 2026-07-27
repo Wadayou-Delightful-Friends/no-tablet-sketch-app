@@ -5,15 +5,12 @@ import type {
   EraseCommand,
   WriteCommand,
 } from "../../domain/command/command";
+import type { NormalizedPoint } from "../../domain/schema_common/point";
 import type { ToolType } from "../../shared/types/tool";
 
+/** 線の太さは座標と違い正規化せず画面 px で送る */
 const PEN_RADIUS = 2;
 const ERASER_RADIUS = 12;
-
-type NormalizedPoint = {
-  x: number;
-  y: number;
-};
 
 type StrokeCommandType = WriteCommand["type"] | EraseCommand["type"];
 
@@ -117,7 +114,6 @@ export function useControllerInput({
         timestamp: Date.now(),
         stroke_id: strokeId,
         radius: commandType === "erase" ? ERASER_RADIUS : PEN_RADIUS,
-        // Command側の座標型名は今後見直す予定だが、送信値は正規化座標とする。
         point: normalizedPoint,
       };
 
