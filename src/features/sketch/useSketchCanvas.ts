@@ -5,8 +5,10 @@
  * Scene は可変オブジェクトのため、再レンダーのたびに作り直すと描いた絵が消える。
  * そこで ref に保持し、マウント時に一度だけ組み立てる。
  *
- * 将来スマホからのコマンド受信を繋ぐ際も、dispatcher を持つこの場所が接続先になる
- * （入力源が sketch_input から受信アダプタへ差し替わるだけで、このフックは残る）。
+ * 遠隔からのコマンドは、このフックが公開する handleRemoteMessage を
+ * 入力口として受け取る。セッションの生成・停止はページ側の責務にして、
+ * フック自身は通信手段（WebRTC / signaling）を一切知らない。
+ * これにより入力源を実接続 / テスト用フェイク / リプレイに差し替えられる。
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -17,11 +19,19 @@ import { createCanvas2dRenderer } from "../../infra/render-canvas2d/canvas2d_ren
 import type { Renderer } from "../../domain/ports/renderer";
 import { DEFAULT_ZOOM_SETTINGS } from "../../domain/camera/camera";
 import { attachSketchInput } from "./sketch_input";
+import { parseCommand } from "../../domain/command/command_validator";
+import { toScreenCommand } from "./normalized_command";
+
+type Dispatcher = ReturnType<typeof createCommandDispatcher>;
 
 export function useSketchCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  /** マウント後に組み立てる描画一式。リサイズ時の再描画で参照する */
-  const sessionRef = useRef<{ scene: Scene; renderer: Renderer } | null>(null);
+  /** マウント後に組み立てる描画一式。リサイズ時の再描画と受信適用で参照する */
+  const sessionRef = useRef<{
+    scene: Scene;
+    renderer: Renderer;
+    dispatcher: Dispatcher;
+  } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -39,13 +49,37 @@ export function useSketchCanvas() {
     const dispatcher = createCommandDispatcher(scene, renderer, DEFAULT_ZOOM_SETTINGS);
     const detachInput = attachSketchInput(canvas, dispatcher.applyCommand);
 
-    sessionRef.current = { scene, renderer };
+    sessionRef.current = { scene, renderer, dispatcher };
     renderer.render(scene);
 
     return () => {
       detachInput();
       sessionRef.current = null;
     };
+  }, []);
+
+  /**
+   * 遠隔から届いたメッセージを描画へ流す入力口。
+   * 呼び出し側が Receiver（や任意の入力源）に繋ぎ込む前提で、
+   * 参照が変わらないよう useCallback で固定している。
+   */
+  const handleRemoteMessage = useCallback((peerId: string, msg: unknown) => {
+    const session = sessionRef.current;
+    const canvas = canvasRef.current;
+    // 組み立て前に届いた分は捨てる（描画先がまだない）
+    if (session === null || canvas === null) return;
+
+    console.log("受信したメッセージ on useSketchCanvas:", peerId, msg);
+    // パース（ここで得られるのは正規化座標のコマンド）
+    const command = parseCommand(msg);
+    // エラーチェック
+    if (command instanceof Error) {
+      console.warn("受信コマンドのパースエラー:", command.message);
+      return;
+    }
+    // 画面 px へ変換して適用する。基準はリサイズで変わるので、届いた時点の実サイズを使う
+    const viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
+    session.dispatcher.applyCommand(toScreenCommand(viewport, command));
   }, []);
 
   /**
@@ -63,5 +97,5 @@ export function useSketchCanvas() {
     session.renderer.render(session.scene);
   }, []);
 
-  return { canvasRef, handleResize };
+  return { canvasRef, handleResize, handleRemoteMessage };
 }

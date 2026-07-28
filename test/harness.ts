@@ -23,7 +23,15 @@ export const test = (test_name: string, body: () => void): void => {
     }
 };
 
-export const assert = (condition: boolean, message: string): void => {
+/**
+ * 型注釈を `asserts condition` にしているため、通過後は TypeScript 側でも
+ * 条件が成り立っているものとして扱える（union の絞り込みに使える）。
+ * 実行時の挙動は「偽なら投げる」だけで、注釈がなかった頃と変わらない。
+ */
+export const assert: (condition: boolean, message: string) => asserts condition = (
+    condition,
+    message,
+) => {
     if (!condition) {
         throw new Error(message);
     }
