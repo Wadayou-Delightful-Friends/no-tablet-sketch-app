@@ -1,13 +1,11 @@
 import "./DrawingAreaFrame.css";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { PointerEventHandler } from "react";
 
-/**
- * PC側の描画エリア（画面全体）の縦横比。
- *
- * 今はPC側の実際の解像度を受け取る手段がないため 16:9 を仮定している。
- * 将来、PC側から実際の画面サイズを共有できるようになったら、
- * この定数を props 化して差し替える想定。
- */
 const DESKTOP_ASPECT_RATIO = 16 / 9;
 
 type DrawingAreaFrameProps = {
@@ -17,26 +15,54 @@ type DrawingAreaFrameProps = {
   onPointerCancel?: PointerEventHandler<HTMLDivElement>;
 };
 
-/**
- * スマホ画面上に、PCの描画エリア（画面全体）に対応する範囲を
- * カメラのビューファインダーのような4隅の角で示すオーバーレイ。
- *
- * Pointer Eventハンドラが渡された場合は、Controllerの描画入力領域としても使う。
- *
- * @param props Controller入力を受け取るPointer Eventハンドラ
- * @returns PC描画領域に対応する枠
- */
 export function DrawingAreaFrame({
   onPointerDown,
   onPointerMove,
   onPointerUp,
   onPointerCancel,
 }: DrawingAreaFrameProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const [frameSize, setFrameSize] = useState({
+    width: 0,
+    height: 0,
+  });
+
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const update = () => {
+      const parentWidth = wrapper.clientWidth;
+      const parentHeight = wrapper.clientHeight;
+
+      let width = parentWidth;
+      let height = width / DESKTOP_ASPECT_RATIO;
+
+      if (height > parentHeight) {
+        height = parentHeight;
+        width = height * DESKTOP_ASPECT_RATIO;
+      }
+
+      setFrameSize({ width, height });
+    };
+
+    update();
+
+    const observer = new ResizeObserver(update);
+    observer.observe(wrapper);
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="drawing-area-frame-wrapper">
+    <div ref={wrapperRef} className="drawing-area-frame-wrapper">
       <div
         className="drawing-area-frame"
-        style={{ aspectRatio: DESKTOP_ASPECT_RATIO }}
+        style={{
+          width: `${frameSize.width}px`,
+          height: `${frameSize.height}px`,
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
