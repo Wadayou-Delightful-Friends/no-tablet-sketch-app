@@ -1,9 +1,0 @@
-{
-  "name": "Controller",
-  "short_name": "Controller",
-  "start_url": "/",
-  "display": "standalone",
-  "orientation": "landscape",
-  "background_color": "#2b2b2b",
-  "theme_color": "#2b2b2b"
-}
