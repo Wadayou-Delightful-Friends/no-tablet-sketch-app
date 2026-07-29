@@ -5,6 +5,7 @@ import type { ToolType } from "../../shared/types/tool";
 
 type ToolSelectorProps = {
   onSelectedToolChange?: (selectedTool: ToolType) => void;
+  onReset?: () => void;
 };
 
 /**
@@ -14,8 +15,8 @@ type ToolSelectorProps = {
  * @param props 選択ツールが変わった時の通知先
  * @returns ツールボタンと選択メニュー
  */
-export function ToolSelector({ onSelectedToolChange }: ToolSelectorProps) {
-  const { menuOpen, hoverTool, handlers } = useToolSelector(onSelectedToolChange);
+export function ToolSelector({ onSelectedToolChange, onReset }: ToolSelectorProps) {
+  const { menuOpen, hoverTool, handlers } = useToolSelector(onSelectedToolChange, onReset);
 
   return (
     <>

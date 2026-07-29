@@ -127,6 +127,15 @@ export function useControllerInput({
     [controllerId, sendCommand],
   );
 
+  const sendReset = useCallback((): void => {
+        sendCommand({
+          type: "reset",
+          controller_id: controllerId,
+          seq: ++commandSequenceRef.current,
+          timestamp: Date.now(),
+        });
+      }, [controllerId, sendCommand]);
+
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>): void => {
       if (!event.isPrimary) return;
@@ -182,5 +191,6 @@ export function useControllerInput({
     onPointerMove: handlePointerMove,
     onPointerUp: handlePointerEnd,
     onPointerCancel: handlePointerEnd,
+    sendReset,
   };
 }

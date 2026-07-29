@@ -30,7 +30,7 @@ export function ControllerPage() {
     sendDrawRef.current(command);
   }, []);
 
-  const inputHandlers = useControllerInput({ selectedTool, sendCommand });
+  const { sendReset, ...inputHandlers} = useControllerInput({ selectedTool, sendCommand });
 
   if (!roomId) return <p>QRコードから開いてください</p>;
 
@@ -38,7 +38,10 @@ export function ControllerPage() {
     <LandscapeLock>
       <div className="controller-page">
         <DrawingAreaFrame {...inputHandlers} />
-        <ToolSelector onSelectedToolChange={setSelectedTool} />
+        <ToolSelector
+          onSelectedToolChange={setSelectedTool} 
+          onReset={sendReset}
+        />
       </div>
     </LandscapeLock>
   );

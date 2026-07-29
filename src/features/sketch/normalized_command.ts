@@ -46,6 +46,9 @@ export const toScreenCommand = (viewport: Viewport, command: Command): Command =
         case "write":
         case "erase":
             return { ...command, point: normalizedToScreen(viewport, command.point) };
+        case "reset":
+            // reset は座標を持たないため、そのまま素通しする
+            return command;
         case "move":
             return { ...command, delta: normalizedToScreen(viewport, command.delta) };
         case "zoom":
