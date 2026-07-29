@@ -1,0 +1,52 @@
+.drawing-area-frame-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 16px 16px 88px;
+  box-sizing: border-box;
+
+  pointer-events: none;
+}
+
+.drawing-area-frame {
+  position: relative;
+  width: 100%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.drawing-area-frame__corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+}
+
+.drawing-area-frame__corner--tl {
+  top: 0;
+  left: 0;
+  border-top: 2px solid rgba(255, 255, 255, 0.85);
+  border-left: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.drawing-area-frame__corner--tr {
+  top: 0;
+  right: 0;
+  border-top: 2px solid rgba(255, 255, 255, 0.85);
+  border-right: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.drawing-area-frame__corner--bl {
+  bottom: 0;
+  left: 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.85);
+  border-left: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.drawing-area-frame__corner--br {
+  bottom: 0;
+  right: 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.85);
+  border-right: 2px solid rgba(255, 255, 255, 0.85);
+}
