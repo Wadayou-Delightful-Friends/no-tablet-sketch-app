@@ -148,7 +148,7 @@ export function useToolSelector(
       setHoverTool(null);
       resetGesture();
     },
-    [menuOpen, hoverTool, onSelectedToolChange, resetGesture]
+    [menuOpen, hoverTool, onSelectedToolChange, onReset, resetGesture]
   );
 
   const handlePointerCancel = useCallback(() => {
