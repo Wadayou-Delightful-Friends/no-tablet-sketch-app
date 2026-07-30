@@ -1,18 +1,48 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import type {
   Command,
   EraseCommand,
+  MoveCommand,
   WriteCommand,
+  ZoomCommand,
 } from "../../domain/command/command";
 import type { NormalizedPoint } from "../../domain/schema_common/point";
 import type { ToolType } from "../../shared/types/tool";
+import {
+  calculatePinchZoomFactor,
+  getTwoFingerGestureSnapshot,
+} from "./twoFingerGesture";
+import type {
+  ControllerPointerPosition,
+  TwoFingerGestureSnapshot,
+} from "./twoFingerGesture";
 
 /** 線の太さは座標と違い正規化せず画面 px で送る */
 const PEN_RADIUS = 2;
 const ERASER_RADIUS = 12;
+/** 一本指の描画か二本指の移動かを判定するため、描画Commandを保留する時間 */
+const TOUCH_GESTURE_DECISION_MS = 80;
 
 type StrokeCommandType = WriteCommand["type"] | EraseCommand["type"];
+type GestureMode =
+  | "idle"
+  | "single-pointer"
+  | "drawing"
+  | "transforming"
+  | "waiting-for-release";
+
+type ActiveStroke = {
+  pointerId: number;
+  commandType: StrokeCommandType;
+  strokeId: string | null;
+  bufferedPoints: NormalizedPoint[];
+};
+
+type TwoFingerGestureState = {
+  pointerIds: readonly [number, number];
+  previousSnapshot: TwoFingerGestureSnapshot;
+};
 
 type UseControllerInputParameters = {
   selectedTool: ToolType;
@@ -62,9 +92,33 @@ function getNormalizedPoint(
 }
 
 /**
+ * Pointer Eventから、Command用の正規化座標と距離計算用の画面座標を取得する。
+ *
+ * 正規化座標は送信するCommandに使い、client座標は端末上の指間距離を
+ * 縦横比の影響なく計算するために使う。
+ *
+ * @param event 描画領域で発生したReactのPointer Event
+ * @returns 正規化座標とCSS px座標。入力領域のサイズを取得できない場合はnull
+ */
+function getControllerPointerPosition(
+  event: PointerEvent<HTMLDivElement>,
+): ControllerPointerPosition | null {
+  const normalizedPoint = getNormalizedPoint(event);
+  if (normalizedPoint === null) return null;
+
+  return {
+    normalizedPoint,
+    clientPoint: {
+      x: event.clientX,
+      y: event.clientY,
+    },
+  };
+}
+
+/**
  * Controllerのツールを、描画用Commandのtypeへ変換する。
  *
- * resetには対応するCommandがまだ存在しないため、描画入力としては扱わない。
+ * reset / undo / redoはストローク操作ではないため、描画入力としては扱わない。
  *
  * @param selectedTool Controllerで選択されているツール
  * @returns writeまたはerase。描画対象外のツールならnull
@@ -76,10 +130,10 @@ function getStrokeCommandType(selectedTool: ToolType): StrokeCommandType | null 
 }
 
 /**
- * スマートフォンのPointer入力を正規化し、点単位の描画Commandへ変換する。
+ * スマートフォンのPointer入力を正規化し、描画・移動・拡大縮小Commandへ変換する。
  *
- * Controller画面の描画領域で使用し、pointerdownでストロークを開始、
- * pointermoveで同じstroke_idの点を送り、pointerup/cancelで終了する。
+ * 一本指ではwrite/erase、二本指では中点差からmove、指間距離の比からzoomを生成する。
+ * 二本指から一本指へ戻った直後は誤描画を防ぐため、全指が離れるまで待機する。
  * WebRTCには依存せず、生成したCommandは引数のsendCommandへ渡す。
  *
  * @param parameters selectedToolとCommandの送り先
@@ -89,18 +143,26 @@ export function useControllerInput({
   selectedTool,
   sendCommand,
 }: UseControllerInputParameters) {
-  //const [controllerId] = useState(() => crypto.randomUUID());
-  /**
-   * ローカルスマホ接続の際は下記のコードのコメントアウトして下記のcontrollerIdをコメントアウトする
-   */
- const [controllerId] = useState(
-  () => crypto.randomUUID?.() ?? `ctrl-${Math.random().toString(36).slice(2, 10)}`
-);
+  const [controllerId] = useState(
+    () =>
+      crypto.randomUUID?.() ??
+      `ctrl-${Math.random().toString(36).slice(2, 10)}`,
+  );
   const commandSequenceRef = useRef(0);
   const strokeSequenceRef = useRef(0);
-  const activePointerIdRef = useRef<number | null>(null);
-  const activeStrokeIdRef = useRef<string | null>(null);
-  const activeCommandTypeRef = useRef<StrokeCommandType | null>(null);
+  const activePointersRef = useRef(
+    new Map<number, ControllerPointerPosition>(),
+  );
+  const gestureModeRef = useRef<GestureMode>("idle");
+  const activeStrokeRef = useRef<ActiveStroke | null>(null);
+  const twoFingerGestureStateRef = useRef<TwoFingerGestureState | null>(null);
+  const strokeDecisionTimerRef = useRef<number | null>(null);
+
+  const clearStrokeDecisionTimer = useCallback((): void => {
+    if (strokeDecisionTimerRef.current === null) return;
+    window.clearTimeout(strokeDecisionTimerRef.current);
+    strokeDecisionTimerRef.current = null;
+  }, []);
 
   const sendStrokeCommand = useCallback(
     (
@@ -127,70 +189,320 @@ export function useControllerInput({
     [controllerId, sendCommand],
   );
 
+  const confirmPendingStroke = useCallback((): void => {
+    clearStrokeDecisionTimer();
+    const activeStroke = activeStrokeRef.current;
+    if (
+      gestureModeRef.current !== "single-pointer" ||
+      activeStroke === null
+    ) {
+      return;
+    }
+
+    activeStroke.strokeId =
+      activeStroke.strokeId ??
+      `${controllerId}:${++strokeSequenceRef.current}`;
+    gestureModeRef.current = "drawing";
+
+    for (const point of activeStroke.bufferedPoints) {
+      sendStrokeCommand(
+        activeStroke.commandType,
+        activeStroke.strokeId,
+        point,
+      );
+    }
+    activeStroke.bufferedPoints = [];
+  }, [clearStrokeDecisionTimer, controllerId, sendStrokeCommand]);
+
+  const scheduleStrokeConfirmation = useCallback((): void => {
+    clearStrokeDecisionTimer();
+    strokeDecisionTimerRef.current = window.setTimeout(() => {
+      strokeDecisionTimerRef.current = null;
+      confirmPendingStroke();
+    }, TOUCH_GESTURE_DECISION_MS);
+  }, [clearStrokeDecisionTimer, confirmPendingStroke]);
+
+  useEffect(
+    () => () => {
+      clearStrokeDecisionTimer();
+    },
+    [clearStrokeDecisionTimer],
+  );
+
+  const sendMoveCommand = useCallback(
+    (delta: NormalizedPoint): void => {
+      if (delta.x === 0 && delta.y === 0) return;
+
+      const command: MoveCommand = {
+        type: "move",
+        controller_id: controllerId,
+        seq: ++commandSequenceRef.current,
+        timestamp: Date.now(),
+        delta,
+      };
+      sendCommand(command);
+    },
+    [controllerId, sendCommand],
+  );
+
+  const sendZoomCommand = useCallback(
+    (anchor: NormalizedPoint, factor: number): void => {
+      if (!Number.isFinite(factor) || factor <= 0 || factor === 1) return;
+
+      const command: ZoomCommand = {
+        type: "zoom",
+        controller_id: controllerId,
+        seq: ++commandSequenceRef.current,
+        timestamp: Date.now(),
+        anchor,
+        factor,
+      };
+      sendCommand(command);
+    },
+    [controllerId, sendCommand],
+  );
+
   const sendReset = useCallback((): void => {
-        sendCommand({
-          type: "reset",
-          controller_id: controllerId,
-          seq: ++commandSequenceRef.current,
-          timestamp: Date.now(),
-        });
-      }, [controllerId, sendCommand]);
+    sendCommand({
+      type: "reset",
+      controller_id: controllerId,
+      seq: ++commandSequenceRef.current,
+      timestamp: Date.now(),
+    });
+  }, [controllerId, sendCommand]);
+
+  const startTwoFingerGesture = useCallback((): void => {
+    const pointers = Array.from(activePointersRef.current.entries());
+    if (pointers.length < 2) return;
+
+    clearStrokeDecisionTimer();
+    activeStrokeRef.current = null;
+
+    const [firstPointerId, firstPointerPosition] = pointers[0];
+    const [secondPointerId, secondPointerPosition] = pointers[1];
+    twoFingerGestureStateRef.current = {
+      pointerIds: [firstPointerId, secondPointerId],
+      previousSnapshot: getTwoFingerGestureSnapshot(
+        firstPointerPosition,
+        secondPointerPosition,
+      ),
+    };
+    gestureModeRef.current = "transforming";
+  }, [clearStrokeDecisionTimer]);
 
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>): void => {
-      if (!event.isPrimary) return;
-
-      const commandType = getStrokeCommandType(selectedTool);
-      const normalizedPoint = getNormalizedPoint(event);
-      if (commandType === null || normalizedPoint === null) return;
+      const pointerPosition = getControllerPointerPosition(event);
+      if (
+        pointerPosition === null ||
+        activePointersRef.current.has(event.pointerId)
+      ) {
+        return;
+      }
 
       event.currentTarget.setPointerCapture(event.pointerId);
-      activePointerIdRef.current = event.pointerId;
-      activeCommandTypeRef.current = commandType;
-      activeStrokeIdRef.current = `${controllerId}:${++strokeSequenceRef.current}`;
+      activePointersRef.current.set(event.pointerId, pointerPosition);
 
-      sendStrokeCommand(
-        commandType,
-        activeStrokeIdRef.current,
-        normalizedPoint,
-      );
+      if (
+        activePointersRef.current.size === 1 &&
+        gestureModeRef.current === "idle"
+      ) {
+        gestureModeRef.current = "single-pointer";
+        const commandType = getStrokeCommandType(selectedTool);
+        activeStrokeRef.current =
+          commandType === null
+            ? null
+            : {
+                pointerId: event.pointerId,
+                commandType,
+                strokeId: null,
+                bufferedPoints: [pointerPosition.normalizedPoint],
+              };
+
+        if (activeStrokeRef.current !== null) {
+          if (event.pointerType === "touch") {
+            scheduleStrokeConfirmation();
+          } else {
+            confirmPendingStroke();
+          }
+        }
+        return;
+      }
+
+      if (
+        activePointersRef.current.size === 2 &&
+        gestureModeRef.current !== "waiting-for-release"
+      ) {
+        startTwoFingerGesture();
+      }
     },
-    [controllerId, selectedTool, sendStrokeCommand],
+    [
+      confirmPendingStroke,
+      scheduleStrokeConfirmation,
+      selectedTool,
+      startTwoFingerGesture,
+    ],
   );
 
   const handlePointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>): void => {
-      if (activePointerIdRef.current !== event.pointerId) return;
+      if (!activePointersRef.current.has(event.pointerId)) return;
+      const pointerPosition = getControllerPointerPosition(event);
+      if (pointerPosition === null) return;
+      activePointersRef.current.set(event.pointerId, pointerPosition);
 
-      const commandType = activeCommandTypeRef.current;
-      const strokeId = activeStrokeIdRef.current;
-      const normalizedPoint = getNormalizedPoint(event);
-      if (commandType === null || strokeId === null || normalizedPoint === null) return;
+      if (gestureModeRef.current === "transforming") {
+        const twoFingerGestureState = twoFingerGestureStateRef.current;
+        if (
+          twoFingerGestureState === null ||
+          !twoFingerGestureState.pointerIds.includes(event.pointerId)
+        ) {
+          return;
+        }
 
-      sendStrokeCommand(commandType, strokeId, normalizedPoint);
+        const firstPointerPosition = activePointersRef.current.get(
+          twoFingerGestureState.pointerIds[0],
+        );
+        const secondPointerPosition = activePointersRef.current.get(
+          twoFingerGestureState.pointerIds[1],
+        );
+        if (
+          firstPointerPosition === undefined ||
+          secondPointerPosition === undefined
+        ) {
+          return;
+        }
+
+        const currentSnapshot = getTwoFingerGestureSnapshot(
+          firstPointerPosition,
+          secondPointerPosition,
+        );
+        const zoomFactor = calculatePinchZoomFactor(
+          twoFingerGestureState.previousSnapshot.distancePx,
+          currentSnapshot.distancePx,
+        );
+        if (zoomFactor !== null) {
+          sendZoomCommand(
+            twoFingerGestureState.previousSnapshot.center,
+            zoomFactor,
+          );
+        }
+        sendMoveCommand({
+          x:
+            currentSnapshot.center.x -
+            twoFingerGestureState.previousSnapshot.center.x,
+          y:
+            currentSnapshot.center.y -
+            twoFingerGestureState.previousSnapshot.center.y,
+        });
+        twoFingerGestureState.previousSnapshot = currentSnapshot;
+        return;
+      }
+
+      const activeStroke = activeStrokeRef.current;
+      if (
+        activeStroke === null ||
+        activeStroke.pointerId !== event.pointerId
+      ) {
+        return;
+      }
+
+      if (gestureModeRef.current === "single-pointer") {
+        activeStroke.bufferedPoints.push(pointerPosition.normalizedPoint);
+        return;
+      }
+
+      if (
+        gestureModeRef.current === "drawing" &&
+        activeStroke.strokeId !== null
+      ) {
+        sendStrokeCommand(
+          activeStroke.commandType,
+          activeStroke.strokeId,
+          pointerPosition.normalizedPoint,
+        );
+      }
     },
-    [sendStrokeCommand],
+    [sendMoveCommand, sendStrokeCommand, sendZoomCommand],
   );
 
-  const handlePointerEnd = useCallback(
-    (event: PointerEvent<HTMLDivElement>): void => {
-      if (activePointerIdRef.current !== event.pointerId) return;
+  const finishPointer = useCallback(
+    (
+      event: PointerEvent<HTMLDivElement>,
+      commitPendingStroke: boolean,
+    ): void => {
+      if (!activePointersRef.current.has(event.pointerId)) return;
+
+      const modeAtFinish = gestureModeRef.current;
+      const activeStroke = activeStrokeRef.current;
+      if (
+        modeAtFinish === "single-pointer" &&
+        activeStroke?.pointerId === event.pointerId
+      ) {
+        if (commitPendingStroke) {
+          confirmPendingStroke();
+        } else {
+          clearStrokeDecisionTimer();
+        }
+      }
 
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
-      activePointerIdRef.current = null;
-      activeStrokeIdRef.current = null;
-      activeCommandTypeRef.current = null;
+      activePointersRef.current.delete(event.pointerId);
+
+      if (modeAtFinish === "transforming") {
+        const endedGesturePointer =
+          twoFingerGestureStateRef.current?.pointerIds.includes(
+            event.pointerId,
+          ) ?? false;
+        if (!endedGesturePointer) return;
+
+        twoFingerGestureStateRef.current = null;
+        activeStrokeRef.current = null;
+        gestureModeRef.current =
+          activePointersRef.current.size === 0
+            ? "idle"
+            : "waiting-for-release";
+        return;
+      }
+
+      if (modeAtFinish === "waiting-for-release") {
+        if (activePointersRef.current.size === 0) {
+          gestureModeRef.current = "idle";
+        }
+        return;
+      }
+
+      clearStrokeDecisionTimer();
+      activeStrokeRef.current = null;
+      gestureModeRef.current =
+        activePointersRef.current.size === 0
+          ? "idle"
+          : "waiting-for-release";
     },
-    [],
+    [clearStrokeDecisionTimer, confirmPendingStroke],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: PointerEvent<HTMLDivElement>): void => {
+      finishPointer(event, true);
+    },
+    [finishPointer],
+  );
+
+  const handlePointerCancel = useCallback(
+    (event: PointerEvent<HTMLDivElement>): void => {
+      finishPointer(event, false);
+    },
+    [finishPointer],
   );
 
   return {
     onPointerDown: handlePointerDown,
     onPointerMove: handlePointerMove,
-    onPointerUp: handlePointerEnd,
-    onPointerCancel: handlePointerEnd,
+    onPointerUp: handlePointerUp,
+    onPointerCancel: handlePointerCancel,
     sendReset,
   };
 }
