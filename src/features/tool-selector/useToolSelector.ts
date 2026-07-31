@@ -3,6 +3,7 @@ import type { PointerEvent } from "react";
 import type { ToolType } from "../../shared/types/tool";
 import { TOOL_ORDER } from "../../shared/types/tool";
 
+
 /** 長押しと判定するまでの時間 (ms) */
 const LONG_PRESS_MS = 300;
 
@@ -46,7 +47,8 @@ function getLogicalY(clientX: number, clientY: number) {
  * @returns 選択状態、メニュー状態、Pointer Eventハンドラ
  */
 export function useToolSelector(
-  onSelectedToolChange?: (selectedTool: ToolType) => void
+  onSelectedToolChange?: (selectedTool: ToolType) => void,
+  onReset?: () => void,
 ) {
   const [selectedTool, setSelectedTool] = useState<ToolType>("pen");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -134,15 +136,19 @@ export function useToolSelector(
 
       // メニューが開く前に指を離した場合（=長押しに満たない）は何もしない
       if (menuOpen && hoverTool) {
-        setSelectedTool(hoverTool);
-        onSelectedToolChange?.(hoverTool);
+        if (hoverTool === "reset") {
+          onReset?.();
+        } else {
+          setSelectedTool(hoverTool);
+          onSelectedToolChange?.(hoverTool);
+        }
       }
 
       setMenuOpen(false);
       setHoverTool(null);
       resetGesture();
     },
-    [menuOpen, hoverTool, onSelectedToolChange, resetGesture]
+    [menuOpen, hoverTool, onSelectedToolChange, onReset, resetGesture]
   );
 
   const handlePointerCancel = useCallback(() => {

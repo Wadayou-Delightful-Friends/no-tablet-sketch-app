@@ -42,10 +42,13 @@ export function ControllerPage() {
   }, []);
 
   const pageClassName = isPortrait
-    ? "controller-page controller-page--portrait-lock"
-    : "controller-page";
+  　? "controller-page controller-page--portrait-lock"
+  　: "controller-page";
 
-  const inputHandlers = useControllerInput({ selectedTool, sendCommand });
+　const { sendReset, ...inputHandlers } = useControllerInput({
+  　selectedTool,
+  　sendCommand,
+　});
 
   if (!roomId) return <p>QRコードから開いてください</p>;
 
@@ -53,7 +56,10 @@ export function ControllerPage() {
     <LandscapeLock>
       <div className={pageClassName}>
         <DrawingAreaFrame {...inputHandlers} />
-        <ToolSelector onSelectedToolChange={setSelectedTool} />
+        <ToolSelector
+          onSelectedToolChange={setSelectedTool} 
+          onReset={sendReset}
+        />
       </div>
     </LandscapeLock>
   );

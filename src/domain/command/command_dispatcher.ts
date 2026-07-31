@@ -3,7 +3,7 @@ import type { Scene } from "../scene/scene";
 import type { Renderer } from "../ports/renderer";
 import type { ZoomSettings } from "../camera/camera";
 import { panBy, zoomAt, screenToWorld, screenLengthToWorld } from "../camera/camera";
-import { appendPoint } from "../stroke/stroke_stack";
+import { appendPoint, appendReset} from "../stroke/stroke_stack";
 
 /**
  * コマンドを Scene に適用し、port 経由で再描画を依頼するディスパッチャ。
@@ -31,6 +31,11 @@ export const createCommandDispatcher = (
                 appendPoint(scene.strokes, command.stroke_id, worldPoint, { kind, radius: worldRadius });
                 break;
             }
+            case "reset":
+                // 削除ではなく「reset の印」を積む。undo 実装時にこの印を
+                // pop すれば reset 前の絵が復元できる（append-only の維持）。
+                appendReset(scene.strokes, command.controller_id, command.timestamp);
+                break;
             case "move":
                 scene.camera = panBy(scene.camera, command.delta);
                 break;
