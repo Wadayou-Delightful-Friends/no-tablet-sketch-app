@@ -28,7 +28,8 @@ export function createRtcTransport() {
 
   type Entry = {
     pc: RTCPeerConnection;
-    channel?: RTCDataChannel;
+    channel?: RTCDataChannel;//sender,receiverの中継の役割を担う自信のチャンネル
+
     pending: RTCIceCandidateInit[]; // remote未設定時にICEを貯める
   };
   const peers = new Map<string, Entry>();
@@ -72,7 +73,11 @@ export function createRtcTransport() {
     }
     return entry;
   }
-
+/**
+ * from : 送ってきた相手のsocket.id
+ * descripton SDP
+ * candidate : ICE候補
+ */
   // 相手からの signal（offer/answer/ICE）を捌く
   socket.off("signal");
   socket.on("signal", async ({ from, description, candidate }: SignalIncoming ) => {

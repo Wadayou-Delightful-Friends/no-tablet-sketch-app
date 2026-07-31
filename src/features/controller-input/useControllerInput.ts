@@ -42,6 +42,7 @@ type ActiveStroke = {
 type TwoFingerGestureState = {
   pointerIds: readonly [number, number];
   previousSnapshot: TwoFingerGestureSnapshot;
+  lastSentZoomDistancePx: number;
 };
 
 type UseControllerInputParameters = {
@@ -280,12 +281,14 @@ export function useControllerInput({
 
     const [firstPointerId, firstPointerPosition] = pointers[0];
     const [secondPointerId, secondPointerPosition] = pointers[1];
+    const initialSnapshot = getTwoFingerGestureSnapshot(
+      firstPointerPosition,
+      secondPointerPosition,
+    );
     twoFingerGestureStateRef.current = {
       pointerIds: [firstPointerId, secondPointerId],
-      previousSnapshot: getTwoFingerGestureSnapshot(
-        firstPointerPosition,
-        secondPointerPosition,
-      ),
+      previousSnapshot: initialSnapshot,
+      lastSentZoomDistancePx: initialSnapshot.distancePx,
     };
     gestureModeRef.current = "transforming";
   }, [clearStrokeDecisionTimer]);
@@ -396,7 +399,7 @@ export function useControllerInput({
           secondPointerPosition,
         );
         const zoomFactor = calculatePinchZoomFactor(
-          twoFingerGestureState.previousSnapshot.distancePx,
+          twoFingerGestureState.lastSentZoomDistancePx,
           currentSnapshot.distancePx,
         );
         if (zoomFactor !== null) {
@@ -404,6 +407,8 @@ export function useControllerInput({
             twoFingerGestureState.previousSnapshot.center,
             zoomFactor,
           );
+          twoFingerGestureState.lastSentZoomDistancePx =
+            currentSnapshot.distancePx;
         }
         sendMoveCommand({
           x:
