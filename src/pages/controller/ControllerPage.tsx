@@ -56,10 +56,11 @@ export function ControllerPage() {
     ? "controller-page controller-page--portrait-lock"
     : "controller-page";
 
-  const { sendReset, ...inputHandlers } = useControllerInput({
-    selectedTool,
-    sendCommand,
-  });
+  const { sendReset, sendUndo, sendRedo, ...inputHandlers } =
+    useControllerInput({
+      selectedTool,
+      sendCommand,
+    });
 
   if (!roomId) return <p>QRコードから開いてください</p>;
 
@@ -69,6 +70,8 @@ export function ControllerPage() {
         <DrawingAreaFrame {...inputHandlers} />
         <ToolSelector
           onSelectedToolChange={handleSelectedToolChange}
+          onUndo={sendUndo}
+          onRedo={sendRedo}
           onReset={sendReset}
         />
       </div>
