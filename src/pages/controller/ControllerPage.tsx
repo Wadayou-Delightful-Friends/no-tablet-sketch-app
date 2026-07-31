@@ -41,6 +41,10 @@ export function ControllerPage() {
     sendDrawRef.current(command);
   }, []);
 
+  const handleSelectedToolChange = useCallback((tool: ToolType) => {
+  setSelectedTool(tool);
+  }, []);
+
   const pageClassName = isPortrait
     ? "controller-page controller-page--portrait-lock"
     : "controller-page";
@@ -58,7 +62,7 @@ export function ControllerPage() {
       <div className={pageClassName}>
         <DrawingAreaFrame {...inputHandlers} />
         <ToolSelector
-          onSelectedToolChange={setSelectedTool}
+          onSelectedToolChange={handleSelectedToolChange}
           onUndo={sendUndo}
           onRedo={sendRedo}
           onReset={sendReset}
