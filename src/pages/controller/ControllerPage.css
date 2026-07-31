@@ -1,7 +1,32 @@
+/* ルート要素 */
 .controller-page {
-  position: fixed;
+  position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   background-color: #2b2b2b;
   overflow: hidden;
   touch-action: none;
 }
+
+/* ツールバー（通常・横持ち時：画面左側に配置） */
+.tool-selector {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding-left: env(safe-area-inset-left);
+  width: calc(88px + env(safe-area-inset-left));
+  height: 100%;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+/* 縦持ち時（CSS回転時）：ツールバーを反対側（右側＝回転後の「下側」）へ移動 */
+.controller-page--portrait-lock .tool-selector {
+  left: auto;
+  right: 0;
+  padding-left: 0;
+  padding-right: env(safe-area-inset-right);
+  width: calc(88px + env(safe-area-inset-right));
+}
+

@@ -16,11 +16,12 @@ import type { Scene } from "../../domain/scene/scene";
 import type { Stroke, KindOfTool } from "../../domain/stroke/stroke";
 import type { ScreenPoint } from "../../domain/schema_common/point";
 import { worldToScreen, worldLengthToScreen } from "../../domain/camera/camera";
+
 import eraserImage from "../../shared/assets/icons/eraser.png";
 import penImage from "../../shared/assets/icons/pen.png";
-//import rendoImage from "../../shared/assets/icons/redo.png";
-//import resetImage from "../../shared/assets/icons/reset.png";
-//import undoImage from "../../shared/assets/icons/undo.png";
+
+import { forEachVisibleStroke } from "../../domain/stroke/stroke_stack";
+
 
 /** ペンの色。色選択の機能がまだないため、全ストローク共通の固定値 */
 const STROKE_COLOR = "#222222";
@@ -149,7 +150,7 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
    const drawPenTip = (scene: Scene): void => {
   // 最後に積まれたストロークを取り出す（Scene が配列以外でも動くよう走査する）
   let lastStroke: Stroke | undefined;
-  for (const stroke of scene.strokes) lastStroke = stroke;
+  forEachVisibleStroke(scene.strokes, (stroke) => { lastStroke = stroke; });
   if (lastStroke === undefined) return;
 
   // Stroke は点列を直接公開しないため、走査して最後の点を得る
@@ -200,10 +201,11 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.restore();
-        for (const stroke of scene.strokes) {
-            drawStroke(scene, stroke);
-        }
-        drawPenTip(scene);
+        forEachVisibleStroke(scene.strokes, (stroke) => {
+    drawStroke(scene, stroke);
+});
+drawPenTip(scene);
+
     };
 
     return {
