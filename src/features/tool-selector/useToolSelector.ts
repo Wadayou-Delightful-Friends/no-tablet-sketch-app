@@ -48,7 +48,6 @@ function getLogicalY(clientX: number, clientY: number) {
  */
 export function useToolSelector(
   onSelectedToolChange?: (selectedTool: ToolType) => void,
-  onReset?: () => void,
 ) {
   const [selectedTool, setSelectedTool] = useState<ToolType>("pen");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -99,6 +98,7 @@ export function useToolSelector(
 
   const handlePointerDown = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
+      console.log("[debug] pointerDown", e.pointerId, Date.now());
       e.currentTarget.setPointerCapture(e.pointerId);
       activePointerIdRef.current = e.pointerId;
       startYRef.current = getLogicalY(e.clientX, e.clientY);
@@ -136,19 +136,15 @@ export function useToolSelector(
 
       // メニューが開く前に指を離した場合（=長押しに満たない）は何もしない
       if (menuOpen && hoverTool) {
-        if (hoverTool === "reset") {
-          onReset?.();
-        } else {
-          setSelectedTool(hoverTool);
-          onSelectedToolChange?.(hoverTool);
-        }
+        setSelectedTool(hoverTool);
+        onSelectedToolChange?.(hoverTool);
       }
 
       setMenuOpen(false);
       setHoverTool(null);
       resetGesture();
     },
-    [menuOpen, hoverTool, onSelectedToolChange, onReset, resetGesture]
+    [menuOpen, hoverTool, onSelectedToolChange, resetGesture]
   );
 
   const handlePointerCancel = useCallback(() => {
@@ -156,6 +152,8 @@ export function useToolSelector(
     setHoverTool(null);
     resetGesture();
   }, [resetGesture]);
+
+  console.log("[debug] render, menuOpen =", menuOpen);
 
   return {
     selectedTool,
@@ -168,4 +166,6 @@ export function useToolSelector(
       onPointerCancel: handlePointerCancel,
     },
   };
+
+  
 }

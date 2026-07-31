@@ -74,27 +74,27 @@ export type ResetCommand = {
     timestamp: number;
 }
 
-// /** 取り消し：対象ストロークを明示し、自分のストロークだけを取り消せるようにする */
-// export type UndoCommand = {
-//     type: "undo";
-//     controller_id: string;
-//     seq: number;
-//     timestamp: number;
-//     stroke_id: string;
-// }
+/** 取り消し：対象ストロークを明示し、自分のストロークだけを取り消せるようにする */
+export type UndoCommand = {
+    type: "undo";
+    controller_id: string;
+    seq: number;
+    timestamp: number;
+}
 
-// /** やり直し */
-// export type RedoCommand = {
-//     type: "redo";
-//     controller_id: string;
-//     seq: number;
-//     timestamp: number;
-//     stroke_id: string;
-// }
+/** やり直し */
+export type RedoCommand = {
+    type: "redo";
+    controller_id: string;
+    seq: number;
+    timestamp: number;
+}
 
 export type Command =
     | WriteCommand
     | EraseCommand
+    | UndoCommand
+    | RedoCommand
     | ResetCommand
     | MoveCommand
     | ZoomCommand;

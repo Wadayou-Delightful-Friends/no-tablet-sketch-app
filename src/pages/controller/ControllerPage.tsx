@@ -32,7 +32,7 @@ export function ControllerPage() {
   }, []);
 
   useEffect(() => {
-    if(!roomId) return;
+    if (!roomId) return;
     const { sendDraw } = startController(roomId);
     sendDrawRef.current = sendDraw;
   }, [roomId]);
@@ -45,10 +45,11 @@ export function ControllerPage() {
     ? "controller-page controller-page--portrait-lock"
     : "controller-page";
 
-  const { sendReset, ...inputHandlers } = useControllerInput({
-    selectedTool,
-    sendCommand,
-  });
+  const { sendReset, sendUndo, sendRedo, ...inputHandlers } =
+    useControllerInput({
+      selectedTool,
+      sendCommand,
+    });
 
   if (!roomId) return <p>QRコードから開いてください</p>;
 
@@ -57,7 +58,9 @@ export function ControllerPage() {
       <div className={pageClassName}>
         <DrawingAreaFrame {...inputHandlers} />
         <ToolSelector
-          onSelectedToolChange={setSelectedTool} 
+          onSelectedToolChange={setSelectedTool}
+          onUndo={sendUndo}
+          onRedo={sendRedo}
           onReset={sendReset}
         />
       </div>

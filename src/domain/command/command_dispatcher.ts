@@ -4,6 +4,7 @@ import type { Renderer } from "../ports/renderer";
 import type { ZoomSettings } from "../camera/camera";
 import { panBy, zoomAt, screenToWorld, screenLengthToWorld } from "../camera/camera";
 import { appendPoint, appendReset} from "../stroke/stroke_stack";
+import { recordPoint, recordReset, undo, redo } from "../history/history";
 
 /**
  * コマンドを Scene に適用し、port 経由で再描画を依頼するディスパッチャ。
@@ -28,13 +29,19 @@ export const createCommandDispatcher = (
                 const worldPoint = screenToWorld(scene.camera, command.point);
                 const worldRadius = screenLengthToWorld(scene.camera, command.radius);
                 const kind = command.type === "write" ? "PEN_DEFAULT" : "ERASE_DEFAULT";
-                appendPoint(scene.strokes, command.stroke_id, worldPoint, { kind, radius: worldRadius });
+                recordPoint(scene.history, command.stroke_id, worldPoint, { kind, radius: worldRadius });
                 break;
             }
             case "reset":
                 // 削除ではなく「reset の印」を積む。undo 実装時にこの印を
                 // pop すれば reset 前の絵が復元できる（append-only の維持）。
-                appendReset(scene.strokes, command.controller_id, command.timestamp);
+                recordReset(scene.history, command.controller_id, command.timestamp);
+                break;
+            case "undo":
+                undo(scene.history);
+                break;
+            case "redo":
+                redo(scene.history);
                 break;
             case "move":
                 scene.camera = panBy(scene.camera, command.delta);

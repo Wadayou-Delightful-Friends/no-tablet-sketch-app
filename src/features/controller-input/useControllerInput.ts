@@ -290,6 +290,24 @@ export function useControllerInput({
     gestureModeRef.current = "transforming";
   }, [clearStrokeDecisionTimer]);
 
+  const sendUndo = useCallback((): void => {
+    sendCommand({
+      type: "undo",
+      controller_id: controllerId,
+      seq: ++commandSequenceRef.current,
+      timestamp: Date.now(),
+    });
+  }, [controllerId, sendCommand]);
+
+  const sendRedo = useCallback((): void => {
+    sendCommand({
+      type: "redo",
+      controller_id: controllerId,
+      seq: ++commandSequenceRef.current,
+      timestamp: Date.now(),
+    });
+  }, [controllerId, sendCommand]);
+
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>): void => {
       const pointerPosition = getControllerPointerPosition(event);
@@ -504,5 +522,7 @@ export function useControllerInput({
     onPointerUp: handlePointerUp,
     onPointerCancel: handlePointerCancel,
     sendReset,
+    sendUndo,
+    sendRedo,
   };
 }

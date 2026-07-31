@@ -17,6 +17,7 @@ import type { Stroke, KindOfTool } from "../../domain/stroke/stroke";
 import type { ScreenPoint } from "../../domain/schema_common/point";
 import { worldToScreen, worldLengthToScreen } from "../../domain/camera/camera";
 import { forEachVisibleStroke } from "../../domain/stroke/stroke_stack";
+import { visibleStack } from "../../domain/history/history";
 
 /** ペンの色。色選択の機能がまだないため、全ストローク共通の固定値 */
 const STROKE_COLOR = "#222222";
@@ -145,7 +146,7 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.restore();
-        forEachVisibleStroke(scene.strokes, (stroke) => {
+        forEachVisibleStroke(visibleStack(scene.history), (stroke) => {
             drawStroke(scene, stroke);
         });
     };
