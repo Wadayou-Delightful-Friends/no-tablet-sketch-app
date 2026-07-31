@@ -22,8 +22,6 @@ import penImage from "../../shared/assets/icons/pen.png";
 
 import { forEachVisibleStroke } from "../../domain/stroke/stroke_stack";
 import { visibleStack } from "../../domain/history/history";
-import penImage from "../../shared/assets/icons/pen.png";
-import eraserImage from "../../shared/assets/icons/eraser.png";
 
 
 /** ペンの色。色選択の機能がまだないため、全ストローク共通の固定値 */
@@ -142,48 +140,6 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         context.restore();
     };
 
-
-
-
-
-
-/**
- * 概要: 直近に描かれた点（＝ペン先）に目印を描く。
- *
- * 目的: 遠隔のスマホがいまどこを指しているかを Display 側で示す。
- * ストロークと同じ worldToScreen を通すため、線と必ず同じ位置になる。
- */
-   const drawPenTip = (scene: Scene): void => {
-  // 最後に積まれたストロークを取り出す（Scene が配列以外でも動くよう走査する）
-  let lastStroke: Stroke | undefined;
-  forEachVisibleStroke(scene.strokes, (stroke) => { lastStroke = stroke; });
-  if (lastStroke === undefined) return;
-
-  // Stroke は点列を直接公開しないため、走査して最後の点を得る
-  let lastWorldPoint: Parameters<Parameters<Stroke["forEachPoint"]>[0]>[0] | undefined;
-  lastStroke.forEachPoint((point) => { lastWorldPoint = point; });
-  if (lastWorldPoint === undefined) return;
-
-   const cursorImage = lastStroke.style.kind === "ERASE_DEFAULT" ? eraserCursorImage : penCursorImage;
-
-
-  if (!cursorImage.complete || cursorImage.naturalWidth === 0) return;
-
-
-  const screenPoint = worldToScreen(scene.camera, lastWorldPoint);
-
-  context.save();
-  // 直前のストロークが destination-out（消しゴム）でも確実に上描きする
-  context.globalCompositeOperation = "source-over";
-  context.drawImage(
-    cursorImage,
-    screenPoint.x - CURSOR_SIZE_PX / 2,   // 中心を合わせるため半分ずらす
-    screenPoint.y - CURSOR_SIZE_PX / 2,
-    CURSOR_SIZE_PX,
-    CURSOR_SIZE_PX,
-  );
-  context.restore();
-};
 
 
 
