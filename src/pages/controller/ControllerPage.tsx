@@ -16,9 +16,20 @@ import "./ControllerPage.css";
  * 端末の向きに関わらず常に横画面のレイアウトで開始する。
  */
 export function ControllerPage() {
-  const roomId = new URLSearchParams(location.search).get("room"); 
+  const roomId = new URLSearchParams(location.search).get("room");
   const [selectedTool, setSelectedTool] = useState<ToolType>("pen");
   const sendDrawRef = useRef<(message: unknown) => void>(() => {});
+  // `ControllerPage` 自体でも向きを検知してクラス名を切り替える
+  const [isPortrait, setIsPortrait] = useState(
+    () => window.matchMedia("(orientation: portrait)").matches
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia("(orientation: portrait)");
+    const handleChange = () => setIsPortrait(mql.matches);
+    mql.addEventListener("change", handleChange);
+    return () => mql.removeEventListener("change", handleChange);
+  }, []);
 
   useEffect(() => {
     if(!roomId) return;
@@ -30,13 +41,20 @@ export function ControllerPage() {
     sendDrawRef.current(command);
   }, []);
 
-  const { sendReset, ...inputHandlers} = useControllerInput({ selectedTool, sendCommand });
+  const pageClassName = isPortrait
+    ? "controller-page controller-page--portrait-lock"
+    : "controller-page";
+
+  const { sendReset, ...inputHandlers } = useControllerInput({
+    selectedTool,
+    sendCommand,
+  });
 
   if (!roomId) return <p>QRコードから開いてください</p>;
 
   return (
     <LandscapeLock>
-      <div className="controller-page">
+      <div className={pageClassName}>
         <DrawingAreaFrame {...inputHandlers} />
         <ToolSelector
           onSelectedToolChange={setSelectedTool} 
