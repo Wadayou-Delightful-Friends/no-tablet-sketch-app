@@ -39,6 +39,36 @@ test("二本指の距離が狭まると1より小さい縮小倍率になる", (
     assertCloseTo(factor, 0.8, "factor");
 });
 
+test("最後に送った距離からの変化がZoom閾値未満なら倍率を生成しない", () => {
+    const factor = calculatePinchZoomFactor(100, 109);
+
+    assert(factor === null, `factor: expected null, got ${String(factor)}`);
+});
+
+test("小さな距離変化が累積してZoom閾値に到達すると倍率を生成する", () => {
+    const lastSentZoomDistancePx = 100;
+
+    assert(
+        calculatePinchZoomFactor(lastSentZoomDistancePx, 104) === null,
+        "4px change should not create zoom",
+    );
+    assert(
+        calculatePinchZoomFactor(lastSentZoomDistancePx, 109) === null,
+        "9px accumulated change should not create zoom",
+    );
+
+    const factor = calculatePinchZoomFactor(lastSentZoomDistancePx, 110);
+    assert(factor !== null, "10px accumulated change should create zoom");
+    assertCloseTo(factor, 1.1, "factor");
+});
+
+test("縮小方向でもZoom閾値に到達すると倍率を生成する", () => {
+    const factor = calculatePinchZoomFactor(100, 90);
+
+    assert(factor !== null, "10px shrink should create zoom");
+    assertCloseTo(factor, 0.9, "factor");
+});
+
 test("距離が変わらない場合と不安定な距離では倍率を生成しない", () => {
     assert(
         calculatePinchZoomFactor(100, 100) === null,
