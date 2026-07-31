@@ -3,7 +3,6 @@ import type { Scene } from "../scene/scene";
 import type { Renderer } from "../ports/renderer";
 import type { ZoomSettings } from "../camera/camera";
 import { panBy, zoomAt, screenToWorld, screenLengthToWorld } from "../camera/camera";
-import { appendPoint, appendReset} from "../stroke/stroke_stack";
 import { recordPoint, recordReset, undo, redo } from "../history/history";
 
 /**
