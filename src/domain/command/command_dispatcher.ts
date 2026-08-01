@@ -2,7 +2,7 @@ import type { Command } from "./command";
 import type { Scene } from "../scene/scene";
 import type { Renderer } from "../ports/renderer";
 import type { ZoomSettings } from "../camera/camera";
-import { panBy, zoomAt, screenToWorld, screenLengthToWorld } from "../camera/camera";
+import { panBy, zoomAt, screenToWorld } from "../camera/camera";
 import { recordPoint, recordReset, undo, redo } from "../history/history";
 
 /**
@@ -26,9 +26,9 @@ export const createCommandDispatcher = (
                 // 変換してから記録する。以後カメラが動いても点は動かない。
                 // radius も同様に画面 px からワールド単位へ変換する
                 const worldPoint = screenToWorld(scene.camera, command.point);
-                const worldRadius = screenLengthToWorld(scene.camera, command.radius);
+                // const worldRadius = screenLengthToWorld(scene.camera, command.radius);
                 const kind = command.type === "write" ? "PEN_DEFAULT" : "ERASE_DEFAULT";
-                recordPoint(scene.history, command.stroke_id, worldPoint, { kind, radius: worldRadius });
+                recordPoint(scene.history, command.stroke_id, worldPoint, { kind, radius: command.radius });
                 break;
             }
             case "reset":

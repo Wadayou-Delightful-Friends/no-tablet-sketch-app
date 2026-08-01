@@ -5,23 +5,25 @@
  * StrokeStack から History へ移す。「今どこまで見せるか」を cursor で表現し、
  * 描画には cursor までの部分配列だけを渡すことで undo/redo を実現する。
  *
- * StrokeStack 自体の型・関数（appendPoint / appendReset / forEachVisibleStroke）は
- * 変更しない。History はその上に「範囲」の概念を足すだけの薄い層に留める。
+ * StrokeStack 自体の関数（appendPoint / appendReset / truncateStack /
+ * forEachVisibleStroke）が何をするかは知らず、呼ぶだけに留める。継続判定の
+ * キャッシュなど、ストロークの格納方法に関する詳細は stroke_stack.ts 側に
+ * 閉じ込め、History はその上に「範囲」の概念を足すだけの薄い層に留める。
  */
 
 import type { WorldPoint } from "../schema_common/point";
 import type { StrokeStyle } from "../stroke/stroke";
-import type { StrokeStack } from "../stroke/stroke_stack";
-import { appendPoint, appendReset } from "../stroke/stroke_stack";
+import type { StrokeStack, StrokeStackEntry } from "../stroke/stroke_stack";
+import { appendPoint, appendReset, createStrokeStack, truncateStack } from "../stroke/stroke_stack";
 
 export type History = {
     /** 完了したアクションの実体。append-only の唯一の実体はここに置く */
     actions: StrokeStack;
-    /** アクティブなアクション数。0〜actions.length。undo/redo で前後する */
+    /** アクティブなアクション数。0〜actions.entries.length。undo/redo で前後する */
     cursor: number;
 };
 
-export const createHistory = (): History => ({ actions: [], cursor: 0 });
+export const createHistory = (): History => ({ actions: createStrokeStack(), cursor: 0 });
 
 /**
  * cursor より後ろに「やり直し可能な未来」が残っている状態で新しい記録が
@@ -29,14 +31,14 @@ export const createHistory = (): History => ({ actions: [], cursor: 0 });
  * 採用しているため（判断基準は undo-redo-design.md を参照）。
  */
 const discardFuture = (history: History): void => {
-    if (history.cursor < history.actions.length) {
-        history.actions.length = history.cursor;
+    if (history.cursor < history.actions.entries.length) {
+        truncateStack(history.actions, history.cursor);
     }
 };
 
 /**
  * 点を 1 つ記録する。write/erase の到着ごとに呼ぶ。
- * 内部は既存の appendPoint（末尾比較で続き/新規を判定）をそのまま利用する。
+ * 内部は既存の appendPoint（stroke_id ごとに続き/新規を判定）をそのまま利用する。
  */
 export const recordPoint = (
     history: History,
@@ -46,7 +48,7 @@ export const recordPoint = (
 ): void => {
     discardFuture(history);
     appendPoint(history.actions, stroke_id, point, style);
-    history.cursor = history.actions.length;
+    history.cursor = history.actions.entries.length;
 };
 
 /**
@@ -61,7 +63,7 @@ export const recordReset = (
 ): void => {
     discardFuture(history);
     appendReset(history.actions, controller_id, timestamp);
-    history.cursor = history.actions.length;
+    history.cursor = history.actions.entries.length;
 };
 
 /** 1 つ前のアクションへ戻す。すでに先頭なら何もしない */
@@ -73,14 +75,15 @@ export const undo = (history: History): void => {
 
 /** 1 つ先のアクションへ進める。すでに末尾なら何もしない */
 export const redo = (history: History): void => {
-    if (history.cursor < history.actions.length) {
+    if (history.cursor < history.actions.entries.length) {
         history.cursor += 1;
     }
 };
 
 /**
  * renderer に渡す「今アクティブな範囲」を切り出す出口。
- * forEachVisibleStroke はこの結果をそのまま受け取れる（StrokeStack のまま）。
+ * slice した結果はキャッシュを持たないプレーンな配列になるため、
+ * forEachVisibleStroke（StrokeStackEntry[] を受け取る）にそのまま渡せる。
  */
-export const visibleStack = (history: History): StrokeStack =>
-    history.actions.slice(0, history.cursor);
+export const visibleStack = (history: History): StrokeStackEntry[] =>
+    history.actions.entries.slice(0, history.cursor);
