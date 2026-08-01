@@ -12,24 +12,15 @@ type ToolSelectorProps = {
   onReset?: () => void;
 };
 
-/**
- * スマートフォン画面に配置する「ツール選択」機能一式。
- * 選択結果をonSelectedToolChangeでControllerの描画入力へ通知する。
- *
- * @param props 選択ツールが変わった時の通知先
- * @returns ツールボタンと選択メニュー
- */
 export function ToolSelector({ onSelectedToolChange, onUndo, onRedo, onReset }: ToolSelectorProps) {
   // ツール選択（長押し→スライド）。reset はもうここに渡さない
-  const { menuOpen: toolMenuOpen, hoverTool, handlers: toolHandlers } =
+  const { menuOpen: toolMenuOpen, hoverTool, isPressing, handlers: toolHandlers } =
     useToolSelector(onSelectedToolChange);
 
   // 履歴操作（タップ→メニュー）
   const { menuOpen: historyMenuOpen, iconHandlers, handleActionSelect } =
     useHistoryMenu({ onUndo, onRedo, onReset });
 
-  // 同じパレットアイコンが「長押し」と「タップ」の両方のジェスチャを
-  // 受け取る必要があるため、両フックのハンドラを1つの要素にまとめる
   return (
     <>
       <ToolButton
@@ -43,6 +34,7 @@ export function ToolSelector({ onSelectedToolChange, onUndo, onRedo, onReset }: 
           iconHandlers.onPointerUp(e);
         }}
         onPointerCancel={toolHandlers.onPointerCancel}
+        isPressing={isPressing}
       />
       <ToolMenu open={toolMenuOpen} hoverTool={hoverTool} />
       <HistoryMenu open={historyMenuOpen} onSelect={handleActionSelect} />

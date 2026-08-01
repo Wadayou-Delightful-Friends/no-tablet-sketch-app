@@ -1,7 +1,7 @@
 .tool-button {
   position: fixed;
   top: 16px;
-  left: 16px;
+  left: calc(16px + env(safe-area-inset-top, 0px));
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -13,8 +13,6 @@
   background-color: rgba(150, 150, 150, 0.55);
   color: #f4f4f4;
 
-  /* 長押し中にブラウザ側のスクロール/選択/コンテキストメニューが
-     割り込まないようにする */
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
@@ -25,4 +23,30 @@
 
 .tool-button:active {
   background-color: rgba(150, 150, 150, 0.75);
+}
+
+.tool-button__progress-ring {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  pointer-events: none;
+  transform: rotate(-90deg);
+}
+
+.tool-button__progress-ring-circle {
+  fill: none;
+  stroke: #ef6f6f;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 188.5;
+  stroke-dashoffset: 188.5;
+  opacity: 0;
+  transition: opacity 80ms ease;
+}
+
+.tool-button--pressing .tool-button__progress-ring-circle {
+  opacity: 1;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 300ms linear, opacity 80ms ease;
 }
