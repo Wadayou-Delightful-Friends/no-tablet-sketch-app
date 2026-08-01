@@ -32,15 +32,28 @@ export function ToolSelector({ onSelectedToolChange, onUndo, onRedo, onReset }: 
     <>
       <ToolButton
         onPointerDown={(e) => {
-          toolHandlers.onPointerDown(e);
+          // HistoryMenu（undo/redo/reset）表示中は長押しでツールメニューを開かないようにする
+          if (!historyMenuOpen) {
+            toolHandlers.onPointerDown(e);
+          }
           iconHandlers.onPointerDown(e);
         }}
-        onPointerMove={toolHandlers.onPointerMove}
+        onPointerMove={(e) => {
+          if(!historyMenuOpen) {
+            toolHandlers.onPointerMove(e);
+          }
+        }}
         onPointerUp={(e) => {
-          toolHandlers.onPointerUp(e);
+          if (!historyMenuOpen) {
+            toolHandlers.onPointerUp(e);
+          }
           iconHandlers.onPointerUp(e);
         }}
-        onPointerCancel={toolHandlers.onPointerCancel}
+        onPointerCancel={() => {
+          if (!historyMenuOpen) {
+            toolHandlers.onPointerCancel();
+          }
+        }}
         isPressing={isPressing}
       />
       <ToolMenu open={toolMenuOpen} hoverTool={hoverTool} />
