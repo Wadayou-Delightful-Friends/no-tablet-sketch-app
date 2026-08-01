@@ -6,7 +6,7 @@ import { ControllerPage } from '../pages/controller/ControllerPage'
 //import { TestControllerPage } from '../pages/TestControllerPage'
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/select" replace /> },
+  { path: '/', element: <Navigate to="/display" replace /> },
   { path: '/select', element: <SelectPage /> },
   { path: '/display', element: <DisplayPage /> },
   { path: '/controller', element: <ControllerPage /> },
