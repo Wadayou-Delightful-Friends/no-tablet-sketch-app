@@ -1,8 +1,10 @@
 import { ToolButton } from "../../shared/ui/ToolButton/ToolButton";
 import { ToolMenu } from "../../shared/ui/ToolMenu/ToolMenu";
+import { CoachMark } from "../../shared/ui/CoachMark/CoachMark";
 import { HistoryMenu } from "./HistoryMenu";
 import { useToolSelector } from "./useToolSelector";
 import { useHistoryMenu } from "./useHistoryMenu";
+import { useCoachMark } from "./useCoachMark"
 import type { ToolType } from "../../shared/types/tool";
 
 type ToolSelectorProps = {
@@ -12,6 +14,8 @@ type ToolSelectorProps = {
   onReset?: () => void;
 };
 
+const COACH_MARK_MESSAGE = "長押しでツール切り替え、\nタップで履歴操作";
+
 export function ToolSelector({ onSelectedToolChange, onUndo, onRedo, onReset }: ToolSelectorProps) {
   // ツール選択（長押し→スライド）。reset はもうここに渡さない
   const { menuOpen: toolMenuOpen, hoverTool, isPressing, handlers: toolHandlers } =
@@ -20,6 +24,9 @@ export function ToolSelector({ onSelectedToolChange, onUndo, onRedo, onReset }: 
   // 履歴操作（タップ→メニュー）
   const { menuOpen: historyMenuOpen, iconHandlers, handleActionSelect } =
     useHistoryMenu({ onUndo, onRedo, onReset });
+
+  // 初回だけ表示するコーチマーク
+  const { visible: coachMarkVisible, dismiss: dismissCoachMark } = useCoachMark();
 
   return (
     <>
@@ -38,6 +45,9 @@ export function ToolSelector({ onSelectedToolChange, onUndo, onRedo, onReset }: 
       />
       <ToolMenu open={toolMenuOpen} hoverTool={hoverTool} />
       <HistoryMenu open={historyMenuOpen} onSelect={handleActionSelect} />
+      {coachMarkVisible && (
+        <CoachMark message={COACH_MARK_MESSAGE} onDismiss={dismissCoachMark} />
+      )}
     </>
   );
 }
