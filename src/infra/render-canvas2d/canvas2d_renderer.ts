@@ -22,8 +22,8 @@ import penImage from "../../shared/assets/icons/pen.png";
 
 import { forEachVisibleStroke } from "../../domain/stroke/stroke_stack";
 import { visibleStack } from "../../domain/history/history";
-
-
+import { colorForController } from "../../shared/utils/controller-color";
+import { labelForController } from "../../shared/utils/controller-color";
 /** ペンの色。色選択の機能がまだないため、全ストローク共通の固定値 */
 const STROKE_COLOR = "#222222";
 const CURSOR_SIZE_PX = 20;
@@ -143,48 +143,72 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
 
 
 
+    const TIP_RATIO = { x: 0, y: 1 };
 
+    /** stroke_id ("ctrl-abc:1") から controller_id を取り出す */
+const getControllerId = (stroke: Stroke): string | null => {
+    const [controllerId] = stroke.stroke_id.split(":");
+    return controllerId || null;
+};
 
+/** controller ごとの最終更新時刻。一定時間動きがなければカーソルを消す */
+const lastSeenByController = new Map<string, number>();
+const lastPointKeyByController = new Map<string, string>();
+const CURSOR_TIMEOUT_MS = 3000;
     /**
      * 概要: 直近に描かれた点（＝ペン先）に目印を描く。
      *
      * 目的: 遠隔のスマホがいまどこを指しているかを Display 側で示す。
      * ストロークと同じ worldToScreen を通すため、線と必ず同じ位置になる。
      */
-   const drawPenTip = (scene: Scene): void => {
-        // 最後に積まれたストロークを取り出す（Scene が配列以外でも動くよう走査する）
-        let lastStroke: Stroke | undefined;
-        forEachVisibleStroke(visibleStack(scene.history), (stroke) => { lastStroke = stroke; });
-        if (lastStroke === undefined) return;
+const drawPenTips = (scene: Scene): void => {
+    // controller ごとに最後のストロークを集める
+    const latestByController = new Map<string, Stroke>();
+    forEachVisibleStroke(visibleStack(scene.history), (stroke) => {
+        const controllerId = getControllerId(stroke);
+        if (controllerId === null) return;
+        latestByController.set(controllerId, stroke);
+    });
 
-        // Stroke は点列を直接公開しないため、走査して最後の点を得る
+    for (const [controllerId, stroke] of latestByController) {
         let lastWorldPoint: Parameters<Parameters<Stroke["forEachPoint"]>[0]>[0] | undefined;
-        lastStroke.forEachPoint((point) => { lastWorldPoint = point; });
-        if (lastWorldPoint === undefined) return;
+        stroke.forEachPoint((point) => { lastWorldPoint = point; });
+        if (lastWorldPoint === undefined) continue;
 
-        const cursorImage = lastStroke.style.kind === "ERASE_DEFAULT" ? eraserCursorImage : penCursorImage;
+        // 点が前回と変わっていれば「動いている」とみなして時刻を更新する
+    const key = `${lastWorldPoint.x},${lastWorldPoint.y}`;
+    if (lastPointKeyByController.get(controllerId) !== key) {
+        lastPointKeyByController.set(controllerId, key);
+        lastSeenByController.set(controllerId, Date.now());
+    }
+
+    // 一定時間更新がなければ描かない
+    const lastSeen = lastSeenByController.get(controllerId) ?? 0;
+    if (Date.now() - lastSeen > CURSOR_TIMEOUT_MS) continue;
 
 
-        if (!cursorImage.complete || cursorImage.naturalWidth === 0) return;
 
+        const cursorImage =
+            stroke.style.kind === "ERASE_DEFAULT" ? eraserCursorImage : penCursorImage;
+        if (!cursorImage.complete || cursorImage.naturalWidth === 0) continue;
 
         const screenPoint = worldToScreen(scene.camera, lastWorldPoint);
 
         context.save();
-        // 直前のストロークが destination-out（消しゴム）でも確実に上描きする
         context.globalCompositeOperation = "source-over";
-        const TIP_RATIO = { x: 0, y: 1 };
-
         context.drawImage(
             cursorImage,
-            screenPoint.x - CURSOR_SIZE_PX * TIP_RATIO.x,  // 中心を合わせるため半分ずらす
+            screenPoint.x - CURSOR_SIZE_PX * TIP_RATIO.x,
             screenPoint.y - CURSOR_SIZE_PX * TIP_RATIO.y,
             CURSOR_SIZE_PX,
             CURSOR_SIZE_PX,
         );
+        context.font = "bold 12px sans-serif";
+        context.fillStyle = colorForController(controllerId);
+        context.fillText(labelForController(controllerId), screenPoint.x + 4, screenPoint.y + 14);
         context.restore();
-    };
-
+    }
+};
     /**
      * 概要: Scene 全体を描き直す。
      *
@@ -207,7 +231,7 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         forEachVisibleStroke(visibleStack(scene.history), (stroke) => {
             drawStroke(scene, stroke);
         });
-        drawPenTip(scene);
+        drawPenTips(scene);
 
     };
 

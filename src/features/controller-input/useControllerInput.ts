@@ -522,6 +522,7 @@ export function useControllerInput({
   );
 
   return {
+    controllerId,
     onPointerDown: handlePointerDown,
     onPointerMove: handlePointerMove,
     onPointerUp: handlePointerUp,
