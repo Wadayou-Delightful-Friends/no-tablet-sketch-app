@@ -49,7 +49,7 @@ export function ToolSelector({ onSelectedToolChange, onUndo, onRedo, onReset }: 
           }
           iconHandlers.onPointerUp(e);
         }}
-        onPointerCancel={(e) => {
+        onPointerCancel={() => {
           if (!historyMenuOpen) {
             toolHandlers.onPointerCancel();
           }
