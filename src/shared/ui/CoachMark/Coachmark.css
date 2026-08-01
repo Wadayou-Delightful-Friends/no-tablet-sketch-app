@@ -1,0 +1,49 @@
+/*
+ * ToolButton.css の位置指定（top:16px, left: calc(16px + safe-area-inset-top),
+ * width/height:56px）を基準に、その右側に吹き出しを出す。
+ * ボタン側のレイアウトを変えた場合はここも合わせて調整すること。
+ */
+.coach-mark {
+  position: fixed;
+  top: 16px;
+  left: calc(16px + env(safe-area-inset-top, 0px) + 56px + 12px);
+  z-index: 900; /* ToolButton(1000)より下、他の一般要素より上 */
+
+  max-width: 200px;
+  padding: 10px 14px;
+  border-radius: 8px;
+
+  background-color: rgba(40, 40, 40, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+
+  animation: coach-mark-fade-in 160ms ease;
+}
+
+.coach-mark__message {
+  margin: 0;
+  color: #f4f4f4;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 吹き出しの左側に付ける小さな三角形（ボタンを指しているように見せる） */
+.coach-mark__pointer {
+  position: absolute;
+  top: 18px;
+  left: -6px;
+  width: 12px;
+  height: 12px;
+  background-color: rgba(40, 40, 40, 0.92);
+  transform: rotate(45deg);
+}
+
+@keyframes coach-mark-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

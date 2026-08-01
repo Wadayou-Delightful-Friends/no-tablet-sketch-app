@@ -52,6 +52,7 @@ export function useToolSelector(
   const [selectedTool, setSelectedTool] = useState<ToolType>("pen");
   const [menuOpen, setMenuOpen] = useState(false);
   const [hoverTool, setHoverTool] = useState<ToolType | null>(null);
+  const [isPressing, setIsPressing] = useState(false);
 
   const longPressTimerRef = useRef<number | null>(null);
   const startYRef = useRef<number | null>(null);
@@ -98,16 +99,17 @@ export function useToolSelector(
 
   const handlePointerDown = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
-      console.log("[debug] pointerDown", e.pointerId, Date.now());
       e.currentTarget.setPointerCapture(e.pointerId);
       activePointerIdRef.current = e.pointerId;
       startYRef.current = getLogicalY(e.clientX, e.clientY);
+      setIsPressing(true);
 
       clearLongPressTimer();
       longPressTimerRef.current = window.setTimeout(() => {
         setMenuOpen(true);
         // メニューが開いた瞬間は、現在選択中のツールをホバー状態にしておく
         setHoverTool(selectedTool);
+        setIsPressing(false);
       }, LONG_PRESS_MS);
     },
     [clearLongPressTimer, selectedTool]
@@ -129,6 +131,7 @@ export function useToolSelector(
 
   const handlePointerUp = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
+      setIsPressing(false);
       if (activePointerIdRef.current !== e.pointerId) {
         resetGesture();
         return;
@@ -148,6 +151,7 @@ export function useToolSelector(
   );
 
   const handlePointerCancel = useCallback(() => {
+    setIsPressing(false);
     setMenuOpen(false);
     setHoverTool(null);
     resetGesture();
@@ -159,6 +163,7 @@ export function useToolSelector(
     selectedTool,
     menuOpen,
     hoverTool,
+    isPressing,
     handlers: {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,
@@ -166,6 +171,4 @@ export function useToolSelector(
       onPointerCancel: handlePointerCancel,
     },
   };
-
-  
 }
