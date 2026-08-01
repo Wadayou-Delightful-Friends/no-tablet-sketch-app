@@ -4,6 +4,7 @@ import { useSketchCanvas } from "../../features/sketch/useSketchCanvas";
 import { SelectedToolBadge } from "../../shared/ui/SelectedToolBadge/SelectedToolBadge";
 import { QrConnectModal } from "../../shared/ui/QrConnectModal/QrConnectModal";
 import { startDisplay } from "../../features/session/display-session";
+import { QrButton } from "../../shared/ui/QrConnectModal/QRButton";
 import "./DisplayPage.css";
 import type { ToolType } from "../../shared/types/tool";
 import type { Command } from "../../domain/command/command";
@@ -37,6 +38,7 @@ export function DisplayPage() {
   // 追加: canvas の ref・リサイズ時の再描画ハンドラ・遠隔コマンドの入力口を受け取る
   const { canvasRef, handleResize, handleRemoteMessage } = useSketchCanvas();
   const [selectedTool, setSelectedTool] = useState<ToolType>("pen");
+
   const [lastCommandType, setLastCommandType] = useState<Command["type"] | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -61,6 +63,7 @@ export function DisplayPage() {
     }, HOLD_MS);
   }, []);
 
+
   // セッションの生成はページの責務。受信を描画へ繋ぐ配線もここで行う
   /**
    * useEffectは理論上最初に一回しか実行されない
@@ -75,9 +78,11 @@ export function DisplayPage() {
 
     receiver.onMessage((_peerId, msg) => {
     const m = msg as { type?: string; changed_tool?: ToolType };
+
     if (m?.type && m.type in COMMAND_TYPE_LABEL) {
       showCommandType(m.type as Command["type"]);
     }
+
     if (m?.type === "tool-changed" && m.changed_tool) setSelectedTool(m.changed_tool);
   });
 
@@ -110,6 +115,7 @@ export function DisplayPage() {
     <main className="display-page">
       <CanvasSurface ref={canvasRef} onResize={handleResize} />
       <SelectedToolBadge tool={selectedTool} />
+
       <div
         style={{
           position: "absolute",
@@ -154,7 +160,12 @@ export function DisplayPage() {
         </span>
       </div>
         
-      {roomId && !isConnected && <QrConnectModal roomId={roomId} />}
+      
+     {roomId && !isConnected && (
+      <QrConnectModal roomId={roomId} />
+    )}
+    <QrButton isConnected= {isConnected}  onToggle= {() => setIsConnected((p) => !p)}/>
+
     </main>
   );
 }

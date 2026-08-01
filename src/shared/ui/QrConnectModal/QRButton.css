@@ -1,0 +1,29 @@
+.qr-button {
+  /* 位置(今のまま) */
+  position: absolute;
+  top: 5px;
+  right: 3px;
+  z-index: 2001; 
+
+  /* 円のサイズと形 */
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+
+  /* 見た目 */
+   background-color: rgba(60, 60, 60, 0.7);
+  border: none;
+
+  /* 中身を中央に */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+
+  cursor: pointer;
+}
+
+.qr-button svg,
+.qr-button img {
+  display: block;
+}

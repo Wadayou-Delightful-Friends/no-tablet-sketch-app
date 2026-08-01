@@ -173,10 +173,12 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         context.save();
         // 直前のストロークが destination-out（消しゴム）でも確実に上描きする
         context.globalCompositeOperation = "source-over";
+        const TIP_RATIO = { x: 0, y: 1 };
+
         context.drawImage(
             cursorImage,
-            screenPoint.x - CURSOR_SIZE_PX / 2,   // 中心を合わせるため半分ずらす
-            screenPoint.y - CURSOR_SIZE_PX / 2,
+            screenPoint.x - CURSOR_SIZE_PX * TIP_RATIO.x,  // 中心を合わせるため半分ずらす
+            screenPoint.y - CURSOR_SIZE_PX * TIP_RATIO.y,
             CURSOR_SIZE_PX,
             CURSOR_SIZE_PX,
         );
