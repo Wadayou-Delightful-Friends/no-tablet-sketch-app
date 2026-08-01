@@ -2,14 +2,14 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { SelectPage } from '../pages/select/SelectPage'
 import { DisplayPage } from '../pages/display/DisplayPage'
 import { ControllerPage } from '../pages/controller/ControllerPage'
-import { TestDisplayPage } from '../pages/TestDisplayPage'   
-import { TestControllerPage } from '../pages/TestControllerPage'
+//import { TestDisplayPage } from '../pages/TestDisplayPage'   
+//import { TestControllerPage } from '../pages/TestControllerPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/select" replace /> },
   { path: '/select', element: <SelectPage /> },
   { path: '/display', element: <DisplayPage /> },
   { path: '/controller', element: <ControllerPage /> },
-  { path: '/testDisplay', element: <TestDisplayPage /> },
-  { path: '/testController', element: <TestControllerPage /> },
+  //{ path: '/testDisplay', element: <TestDisplayPage /> },
+ // { path: '/testController', element: <TestControllerPage /> },
 ])
