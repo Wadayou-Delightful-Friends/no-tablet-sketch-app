@@ -1,3 +1,6 @@
+/**
+ * Coach Markを表示するコンポーネント。
+ */
 /*
  * ToolButton.css の位置指定（top:16px, left: calc(16px + safe-area-inset-top),
  * width/height:56px）を基準に、その右側に吹き出しを出す。
