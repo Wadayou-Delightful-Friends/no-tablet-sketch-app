@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { CanvasSurface } from "../../shared/ui/canvas/CanvasSurface";
 import { useSketchCanvas } from "../../features/sketch/useSketchCanvas";
 import { SelectedToolBadge } from "../../shared/ui/SelectedToolBadge/SelectedToolBadge";
@@ -21,8 +21,8 @@ const TOOL_LABEL: Record<ToolType, string> = {
 const COMMAND_TYPE_LABEL: Record<Command["type"], string> = {
   write: "描画中",
   erase: "消去中",
-  move: "移動",
-  zoom: "拡大縮小",
+  move: "移動/拡大縮小",
+  zoom: "移動/拡大縮小",
   reset: "リセット",
   undo: "元に戻す",
   redo: "やり直す",
@@ -40,6 +40,26 @@ export function DisplayPage() {
   const [lastCommandType, setLastCommandType] = useState<Command["type"] | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const lastCommandTimerRef = useRef<number | null>(null);
+
+  /**
+   * zoom/move はドラッグ中に大量のコマンドが連続して届くため、
+   * 受信の都度そのまま表示すると一瞬で他の種別に上書きされ視認できない。
+   * そこで最後に更新されてから一定時間は表示を保持し、経過したら消す
+   * （タイマー式。表示中に同種別が続けば毎回タイマーを延長する）。
+   */
+  const HOLD_MS = 1000;
+
+  const showCommandType = useCallback((type: Command["type"]) => {
+    setLastCommandType(type);
+    if (lastCommandTimerRef.current !== null) {
+      window.clearTimeout(lastCommandTimerRef.current);
+    }
+    lastCommandTimerRef.current = window.setTimeout(() => {
+      setLastCommandType(null);
+      lastCommandTimerRef.current = null;
+    }, HOLD_MS);
+  }, []);
 
   // セッションの生成はページの責務。受信を描画へ繋ぐ配線もここで行う
   /**
@@ -56,12 +76,21 @@ export function DisplayPage() {
     receiver.onMessage((_peerId, msg) => {
     const m = msg as { type?: string; changed_tool?: ToolType };
     if (m?.type && m.type in COMMAND_TYPE_LABEL) {
-      setLastCommandType(m.type as Command["type"]);
+      showCommandType(m.type as Command["type"]);
     }
     if (m?.type === "tool-changed" && m.changed_tool) setSelectedTool(m.changed_tool);
   });
 
-  }, [handleRemoteMessage]);
+  }, [handleRemoteMessage, showCommandType]);
+
+  // アンマウント時にタイマーが残らないようにする
+  useEffect(() => {
+    return () => {
+      if (lastCommandTimerRef.current !== null) {
+        window.clearTimeout(lastCommandTimerRef.current);
+      }
+    };
+  }, []);
 
   /**
     * write/erase は選択中ツールと矛盾する組み合わせでは表示しない。
@@ -100,16 +129,29 @@ export function DisplayPage() {
         }}
       >
         <span style={{ fontSize: 14, fontWeight: 600, color: "#ef6f6f" }}>
-            {TOOL_LABEL[selectedTool]}
+          {TOOL_LABEL[selectedTool]}
         </span>
-        {isCommandTypeVisible && lastCommandType && (
-          <span style={{ fontSize: 12, color: "#8a8a8a" }}>|</span>
-        )}
-        {isCommandTypeVisible && lastCommandType && (
-          <span style={{ fontSize: 12, color: "#c9c9c9", fontWeight: 500 }}>
-            {COMMAND_TYPE_LABEL[lastCommandType]}
-          </span>
-        )}
+        <span
+          style={{
+            fontSize: 12,
+            color: "#8a8a8a",
+            opacity: isCommandTypeVisible && lastCommandType ? 1 : 0,
+            transition: "opacity 150ms ease",
+          }}
+        >
+          |
+        </span>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: "#c9c9c9",
+            opacity: isCommandTypeVisible && lastCommandType ? 1 : 0,
+            transition: "opacity 150ms ease",
+          }}
+        >
+          {lastCommandType ? COMMAND_TYPE_LABEL[lastCommandType] : ""}
+        </span>
       </div>
         
       {roomId && !isConnected && <QrConnectModal roomId={roomId} />}
