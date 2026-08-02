@@ -44,23 +44,23 @@ export function ControllerPage() {
     sendDrawRef.current(command);
   }, []);
 
-  const handleSelectedToolChange = useCallback((tool: ToolType) => {
-    setSelectedTool(tool);
-    // Command型（write/erase/move/zoom/reset）とは別の種類のメッセージだが、
-    // 送信の窓口（sendDrawRef.current）は「何でも送れる」作りなので、
-    // 新しい type を持たせるだけでそのまま送れる
-    sendDrawRef.current({ type: "tool-changed", changed_tool: tool });
-  }, []);
+  const { controllerId, sendReset, sendUndo, sendRedo, ...inputHandlers } =
+  useControllerInput({ selectedTool, sendCommand });
+
+const handleSelectedToolChange = useCallback((tool: ToolType) => {
+  setSelectedTool(tool);
+  sendDrawRef.current({
+    type: "tool-changed",
+    changed_tool: tool,
+    controller_id: controllerId,
+  });
+}, [controllerId]);
 
   const pageClassName = isPortrait
     ? "controller-page controller-page--portrait-lock"
     : "controller-page";
 
-  const { sendReset, sendUndo, sendRedo, ...inputHandlers } =
-    useControllerInput({
-      selectedTool,
-      sendCommand,
-    });
+
 
   if (!roomId) return <p>QRコードから開いてください</p>;
 
