@@ -15,10 +15,11 @@ export function isControllerActive(controllerId: string): boolean {
   return activeControllers.has(controllerId);
 }
 
+const LABEL_MAX_LENGTH = 6;
+
 /** controller_id に接続順の番号を割り当てて返す（1人目、2人目…） */
 export function labelForController(controllerId: string): string {
-
-  return `${controllerId}`;
+  return controllerId.slice(0, LABEL_MAX_LENGTH);
 }
 
 export function colorForController(controllerId: string): string {
