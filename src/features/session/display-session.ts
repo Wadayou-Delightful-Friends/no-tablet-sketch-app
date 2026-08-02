@@ -5,7 +5,7 @@ import { createRtcTransport } from "../../infra/webrtc/rtc-transport";
  * @param roomId シグナリングの部屋番号
  * @param onDraw Controllerがデータを受信した時に、Displayに届いた瞬間に入るイベントハンドラ
  */
-export function startDisplay(onRoomReady: (roomId: string) => void, onConnected?: () => void,  ) {
+export function startDisplay(onRoomReady: (roomId: string) => void, onConnected?: () => void, onPeerLeft?: (peerId: string) => void,    ) {
   const connection = createSocketIOConnection();
   const transport = createRtcTransport();
 
@@ -21,7 +21,10 @@ export function startDisplay(onRoomReady: (roomId: string) => void, onConnected?
     onConnected?.();     
   });
   connection.onLeft(({ peerId, role }) => {
-    if (role === "controller") transport.close(peerId);
+    if (role === "controller") {
+      transport.close(peerId);
+      onPeerLeft?.(peerId);  
+    }
   });
   connection.onJoinError((reason) => console.warn("エラー:", reason));
 
