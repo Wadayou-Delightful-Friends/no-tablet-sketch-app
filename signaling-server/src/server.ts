@@ -70,38 +70,28 @@ io.on("connection", (socket: Socket) => {
       socket.emit("join-error", { reason: "invalid join payload" });
       return;
     }
-    // --- Display として参加 ---
-    /** 
+
+    // Display は create-room で部屋を作る。join からは入れない
     if (role === "display") {
-   if (roomDisplays.has(roomId)) {
-        socket.emit("join-error", { reason: "display already exists" });
-        return;
-      }
-      socket.join(roomId);
-      socket.data.roomId = roomId;
-      socket.data.role = "display";
-      roomDisplays.set(roomId, socket.id);
-      socket.emit("joined", { roomId });
-      console.log(`[display]    ${socket.id} -> ${roomId}`);
-      return;
-    }*/
-
-    // --- Controller として参加 ---
-    /**
-     * roomDisplaysから、roomIdに該当するディスプレイをひっぱてコントローラーにもディスプレイもに書くブラウザが到達したことを通達する。
-     */
-
-    const displayId = roomDisplays.get(roomId);//roomIDがdisplay.idを検索する
-    
-    if (!displayId) {
-     // socket.emit("no-display", { roomId }); // Displayがまだ居ない
+      socket.emit("join-error", { reason: "display must use create-room" });
       return;
     }
+
+    const displayId = roomDisplays.get(roomId);
+
+    if (!displayId) {
+      console.warn(
+        `[join] Display不在 room=${roomId} / 存在するルーム: [${[...roomDisplays.keys()].join(", ")}]`,
+      );
+      socket.emit("no-display", { roomId });
+      return;
+    }
+
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.role = "controller";
-    socket.emit("joined", { roomId, displayId });            // 接続先Displayを教える
-    io.to(displayId).emit("peer-joined", { peerId: socket.id }); // Displayにだけ通知
+    socket.emit("joined", { roomId, displayId });                 // 接続先Displayを教える
+    io.to(displayId).emit("peer-joined", { peerId: socket.id });  // Displayにだけ通知
     console.log(`[controller] ${socket.id} -> ${roomId} (display: ${displayId})`);
   });
 

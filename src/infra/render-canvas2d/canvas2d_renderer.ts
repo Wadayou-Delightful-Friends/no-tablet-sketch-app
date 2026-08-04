@@ -151,6 +151,9 @@ const getControllerId = (stroke: Stroke): string | null => {
     return controllerId || null;
 };
 
+
+
+
 /** controller ごとの最終更新時刻。一定時間動きがなければカーソルを消す */
 const lastSeenByController = new Map<string, number>();
 const lastPointKeyByController = new Map<string, string>();
