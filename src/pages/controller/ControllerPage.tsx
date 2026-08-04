@@ -33,11 +33,16 @@ export function ControllerPage() {
   }, []);
 
   //roomIdの値が変更した瞬間実行されるが理論上はURLから読み取るため一回しか実行されない。
+//IDConectionのチャネルを確立しにいく。
   useEffect(() => {
     if (!roomId) return;
-    const { sendDraw } = startController(roomId);
+    const { sendDraw, dispose } = startController(roomId);
     sendDrawRef.current = sendDraw;
-  }, [roomId]);
+    return () => {
+    dispose();
+    sendDrawRef.current = () => {};
+  };
+}, [roomId]);
 
   //使い回しができるようにsenderを保存しておく。この場合currentにはsenderが入る。
   const sendCommand = useCallback((command: Command): void => {

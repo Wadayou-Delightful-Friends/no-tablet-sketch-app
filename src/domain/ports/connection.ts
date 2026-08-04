@@ -23,8 +23,8 @@ export interface Connection {
 
   // 参加時のエラー（重複・不正など）
   onJoinError(cb: (reason: string) => void): void;
-/**
-  // 接続先の Display が居ない
-  onNoDisplay(cb: (roomId: string) => void): void;
-  */
+
+
+  
+ dispose(): void;
 }
