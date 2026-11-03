@@ -4,13 +4,13 @@
 dev:
 	@echo "starting client & signaling-server (Ctrl-C to stop)"
 	@trap 'kill 0' INT TERM EXIT; \
-	pnpm dev --host & \
+	pnpm --dir display-frontend dev --host & \
 	pnpm --dir signaling-server dev --host & \
 	wait
 
 # クライアントのみ
 dev-client:
-	pnpm dev --host
+	pnpm --dir display-frontend dev --host
 
 # シグナリングサーバのみ
 dev-server:
@@ -18,5 +18,5 @@ dev-server:
 
 # 依存関係のインストール
 install:
-	pnpm install
+	pnpm --dir display-frontend install
 	pnpm --dir signaling-server install
