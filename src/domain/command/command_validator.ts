@@ -1,4 +1,4 @@
-import type { Command, WriteCommand, EraseCommand, MoveCommand, ZoomCommand } from "./command";
+import type { Command, WriteCommand, EraseCommand, ResetCommand, UndoCommand, RedoCommand, MoveCommand, ZoomCommand} from "./command";
 
 /**
  * 問題なければ null、駄目なら理由を持つ Error を返す。
@@ -91,6 +91,53 @@ const validateStrokeCommand = (command: unknown, type: "write" | "erase"): Error
     // --- 値チェック（値域は未定。決まり次第ここに追加する） ---
     // TODO: radius は正の数か
 
+    return null;
+};
+
+/**
+ * 全て通れば null、駄目なら理由を持つ Error を返す。
+ * reset コマンドのパラメータをチェックする。
+ * 共通フィールド以外に固有のペイロードを持たないため、検証は共通チェックのみ。
+ */
+const validateResetCommand = (command: unknown): Error | null => {
+    if (typeof command !== "object" || command === null) {
+        return Error("reset: command must be an object");
+    }
+    const commonError = validateCommonFields(command, "reset");
+    if (commonError) {
+        return commonError;
+    }
+    return null;
+};
+
+/**
+ * 全て通れば null、駄目なら理由を持つ Error を返す。
+ * undo コマンドのパラメータをチェックする。
+ * reset と同じく固有のペイロードを持たないため、検証は共通チェックのみ。
+ */
+const validateUndoCommand = (command: unknown): Error | null => {
+    if (typeof command !== "object" || command === null) {
+        return Error("undo: command must be an object");
+    }
+    const commonError = validateCommonFields(command, "undo");
+    if (commonError) {
+        return commonError;
+    }
+    return null;
+};
+
+/**
+ * 全て通れば null、駄目なら理由を持つ Error を返す。
+ * redo コマンドのパラメータをチェックする。undo と同型。
+ */
+const validateRedoCommand = (command: unknown): Error | null => {
+    if (typeof command !== "object" || command === null) {
+        return Error("redo: command must be an object");
+    }
+    const commonError = validateCommonFields(command, "redo");
+    if (commonError) {
+        return commonError;
+    }
     return null;
 };
 
@@ -199,6 +246,45 @@ export const parseCommand = (parsedJson: unknown): Command | Error => {
             stroke_id: command.stroke_id,
             radius: command.radius,
             point: command.point,
+        };
+    }
+    if (parsedJson.type === "reset") {
+        const error = validateResetCommand(parsedJson);
+        if (error) {
+            return error;
+        }
+        const command = parsedJson as ResetCommand;
+        return {
+            type: "reset",
+            controller_id: command.controller_id,
+            seq: command.seq,
+            timestamp: command.timestamp,
+        };
+    }
+    if (parsedJson.type === "undo") {
+        const error = validateUndoCommand(parsedJson);
+        if (error) {
+            return error;
+        }
+        const command = parsedJson as UndoCommand;
+        return {
+            type: "undo",
+            controller_id: command.controller_id,
+            seq: command.seq,
+            timestamp: command.timestamp,
+        };
+    }
+    if (parsedJson.type === "redo") {
+        const error = validateRedoCommand(parsedJson);
+        if (error) {
+            return error;
+        }
+        const command = parsedJson as RedoCommand;
+        return {
+            type: "redo",
+            controller_id: command.controller_id,
+            seq: command.seq,
+            timestamp: command.timestamp,
         };
     }
     if (parsedJson.type === "move") {

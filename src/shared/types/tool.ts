@@ -3,12 +3,9 @@
  *
  * pen    : 描画（ペン）
  * eraser : 消しゴム
- * reset  : キャンバスのリセット
+ * 
+ * 選択ジェスチャー
+ * 長押し→スライド選択（既存 useToolSelector)
  */
-export type ToolType = "pen" | "eraser" | "reset" | "undo" | "redo";
-
-/**
- * メニューに表示するツールの並び順。
- * ToolMenu / useToolSelector の両方でこの並びを参照する。
- */
-export const TOOL_ORDER: ToolType[] = ["pen", "eraser", "reset", "undo", "redo"];
+export type ToolType = "pen" | "eraser";
+export const TOOL_ORDER: ToolType[] = ["pen", "eraser"];

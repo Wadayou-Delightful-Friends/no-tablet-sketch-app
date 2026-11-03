@@ -12,7 +12,7 @@
   justify-content: center;
 
   /* 後ろのキャンバス画面にシャドウ（暗い半透明の被せ）を入れる */
-  background-color: rgba(0, 0, 0, 0.55);
+   background-color: rgba(60, 60, 60, 0.7);
 }
 
 .qr-connect-modal {

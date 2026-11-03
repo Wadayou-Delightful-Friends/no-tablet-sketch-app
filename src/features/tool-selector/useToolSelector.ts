@@ -3,6 +3,7 @@ import type { PointerEvent } from "react";
 import type { ToolType } from "../../shared/types/tool";
 import { TOOL_ORDER } from "../../shared/types/tool";
 
+
 /** 長押しと判定するまでの時間 (ms) */
 const LONG_PRESS_MS = 300;
 
@@ -46,11 +47,12 @@ function getLogicalY(clientX: number, clientY: number) {
  * @returns 選択状態、メニュー状態、Pointer Eventハンドラ
  */
 export function useToolSelector(
-  onSelectedToolChange?: (selectedTool: ToolType) => void
+  onSelectedToolChange?: (selectedTool: ToolType) => void,
 ) {
   const [selectedTool, setSelectedTool] = useState<ToolType>("pen");
   const [menuOpen, setMenuOpen] = useState(false);
   const [hoverTool, setHoverTool] = useState<ToolType | null>(null);
+  const [isPressing, setIsPressing] = useState(false);
 
   const longPressTimerRef = useRef<number | null>(null);
   const startYRef = useRef<number | null>(null);
@@ -100,12 +102,14 @@ export function useToolSelector(
       e.currentTarget.setPointerCapture(e.pointerId);
       activePointerIdRef.current = e.pointerId;
       startYRef.current = getLogicalY(e.clientX, e.clientY);
+      setIsPressing(true);
 
       clearLongPressTimer();
       longPressTimerRef.current = window.setTimeout(() => {
         setMenuOpen(true);
         // メニューが開いた瞬間は、現在選択中のツールをホバー状態にしておく
         setHoverTool(selectedTool);
+        setIsPressing(false);
       }, LONG_PRESS_MS);
     },
     [clearLongPressTimer, selectedTool]
@@ -127,6 +131,7 @@ export function useToolSelector(
 
   const handlePointerUp = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
+      setIsPressing(false);
       if (activePointerIdRef.current !== e.pointerId) {
         resetGesture();
         return;
@@ -146,15 +151,19 @@ export function useToolSelector(
   );
 
   const handlePointerCancel = useCallback(() => {
+    setIsPressing(false);
     setMenuOpen(false);
     setHoverTool(null);
     resetGesture();
   }, [resetGesture]);
 
+  console.log("[debug] render, menuOpen =", menuOpen);
+
   return {
     selectedTool,
     menuOpen,
     hoverTool,
+    isPressing,
     handlers: {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,

@@ -7,12 +7,15 @@
 import type { Camera } from "../camera/camera";
 import { createCamera } from "../camera/camera";
 import type { ScreenPoint } from "../schema_common/point";
-import type { StrokeStack } from "../stroke/stroke_stack";
-import { createStrokeStack } from "../stroke/stroke_stack";
+//import type { StrokeStack } from "../stroke/stroke_stack";
+//import { createStrokeStack } from "../stroke/stroke_stack";
+import type { History } from "../history/history";
+import { createHistory } from "../history/history";
+
 
 export type Scene = {
     camera: Camera;
-    strokes: StrokeStack;
+    history: History;
 }
 
 /**
@@ -23,5 +26,5 @@ export type Scene = {
  */
 export const createScene = (worldOriginOnScreen: ScreenPoint): Scene => ({
     camera: createCamera(worldOriginOnScreen),
-    strokes: createStrokeStack(),
+    history: createHistory(),
 });

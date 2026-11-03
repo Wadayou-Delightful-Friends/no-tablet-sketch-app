@@ -1,5 +1,11 @@
 .display-page {
     position: fixed;
     inset: 0;
-    background-color:#f4f4f4;
+    background-color: #000000;;
+
+}
+.QRButton {
+  position: fixed;   /* 画面に対して固定(スクロールしても付いてくる) */
+  top: 16px;
+  right: 16px;
 }

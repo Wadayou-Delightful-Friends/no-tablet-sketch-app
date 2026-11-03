@@ -1,0 +1,25 @@
+/*
+ * レイアウト定数は ToolMenu.css と完全に一致させる
+ * （同じパレットアイコンの下に展開するメニューのため）。
+ */
+
+.history-menu {
+  position: fixed;
+  top: 80px; /* BUTTON_TOP(16) + BUTTON_SIZE(56) + GAP(8) */
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-12px) scaleY(0.9);
+  transform-origin: top center;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.history-menu--open {
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+  pointer-events: auto;
+}

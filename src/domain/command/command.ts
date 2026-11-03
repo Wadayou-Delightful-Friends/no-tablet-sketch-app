@@ -58,26 +58,43 @@ export type ZoomCommand = {
     factor: number;
 }
 
-// /** 取り消し：対象ストロークを明示し、自分のストロークだけを取り消せるようにする */
-// export type UndoCommand = {
-//     type: "undo";
-//     controller_id: string;
-//     seq: number;
-//     timestamp: number;
-//     stroke_id: string;
-// }
+/**
+ * リセット：キャンバスの全ストロークを消去する。
+ * write/erase と違い点ベースの累積ではなく、状態を一括で空にする操作のため、
+ * 固有のペイロードは持たない（共通フィールドのみ）。
+ *
+ * 現時点では非破壊（append-only）の原則の外側にある操作。
+ * このコマンド適用後は、それ以前のストロークを undo で戻すことはできない
+ * （undo/redo 実装時に要検討）。
+ */
+export type ResetCommand = {
+    type: "reset";
+    controller_id: string;
+    seq: number;
+    timestamp: number;
+}
 
-// /** やり直し */
-// export type RedoCommand = {
-//     type: "redo";
-//     controller_id: string;
-//     seq: number;
-//     timestamp: number;
-//     stroke_id: string;
-// }
+/** 取り消し：対象ストロークを明示し、自分のストロークだけを取り消せるようにする */
+export type UndoCommand = {
+    type: "undo";
+    controller_id: string;
+    seq: number;
+    timestamp: number;
+}
+
+/** やり直し */
+export type RedoCommand = {
+    type: "redo";
+    controller_id: string;
+    seq: number;
+    timestamp: number;
+}
 
 export type Command =
     | WriteCommand
     | EraseCommand
+    | UndoCommand
+    | RedoCommand
+    | ResetCommand
     | MoveCommand
     | ZoomCommand;

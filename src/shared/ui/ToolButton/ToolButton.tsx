@@ -19,6 +19,8 @@ type ToolButtonProps = {
   onPointerMove: (e: PointerEvent<HTMLButtonElement>) => void;
   onPointerUp: (e: PointerEvent<HTMLButtonElement>) => void;
   onPointerCancel: (e: PointerEvent<HTMLButtonElement>) => void;
+  /** 長押し中かどうか。true の間、周囲にリングが溜まっていくアニメーションを表示する */
+  isPressing: boolean;
 };
 
 /**
@@ -33,11 +35,12 @@ export function ToolButton({
   onPointerMove,
   onPointerUp,
   onPointerCancel,
+  isPressing,
 }: ToolButtonProps) {
   return (
     <button
       type="button"
-      className="tool-button"
+      className={`tool-button${isPressing ? " tool-button--pressing" : ""}`}
       aria-label="ツールメニューを開く（長押し）"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -45,6 +48,10 @@ export function ToolButton({
       onPointerCancel={onPointerCancel}
       onContextMenu={(e) => e.preventDefault()}
     >
+      {/* 長押し中に溜まっていく進捗リング。ボタン本体より少し外側に描く */}
+      <svg className="tool-button__progress-ring" viewBox="0 0 64 64" aria-hidden="true">
+        <circle className="tool-button__progress-ring-circle" cx="32" cy="32" r="30" />
+      </svg>
       <PaletteIcon />
     </button>
   );

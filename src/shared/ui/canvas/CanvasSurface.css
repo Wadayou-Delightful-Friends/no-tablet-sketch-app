@@ -1,16 +1,32 @@
+/* 画面全体。ここが中央寄せの基準になる */
+.display-page {
+  position: fix;
+  background-color: #9e9e9e;
+
+  display: grid;
+  place-items: center;
+}
+
+/* 間にある層をレイアウトから消す（高さの連鎖が切れるのを防ぐ） */
+.canvas-area {
+  display: contents;
+}
+
+/* 白い板 */
 .canvas-surface {
-  position: absolute;
-  inset: 0;
-  box-sizing: border-box;
+  aspect-ratio: 16 / 9;
+
+  width: calc(100% - 2cm);
+  max-width: calc(100% - 2cm);
+  max-height: calc(100% - 2cm);
 
   background-color: #ffffff;
-  border: 1cm solid #9e9e9e;
-
+  outline: 1cm solid #9e9e9e;
+  
   overflow: hidden;
+ 
 }
 
 .canvas-surface canvas {
   display: block;
-  width: 100%;
-  height: 100%;
 }

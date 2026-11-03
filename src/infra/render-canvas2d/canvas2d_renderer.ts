@@ -17,8 +17,22 @@ import type { Stroke, KindOfTool } from "../../domain/stroke/stroke";
 import type { ScreenPoint } from "../../domain/schema_common/point";
 import { worldToScreen, worldLengthToScreen } from "../../domain/camera/camera";
 
+import eraserImage from "../../shared/assets/icons/eraser.png";
+import penImage from "../../shared/assets/icons/pen.png";
+
+import { forEachVisibleStroke } from "../../domain/stroke/stroke_stack";
+import { visibleStack } from "../../domain/history/history";
+import { colorForController } from "../../shared/utils/controller-color";
+import { labelForController } from "../../shared/utils/controller-color";
 /** ペンの色。色選択の機能がまだないため、全ストローク共通の固定値 */
 const STROKE_COLOR = "#222222";
+const CURSOR_SIZE_PX = 20;
+
+const penCursorImage = new Image(); // ペン画像
+penCursorImage.src = penImage;
+
+const eraserCursorImage = new Image(); // 消しゴム画像
+eraserCursorImage.src = eraserImage;
 
 /**
  * ストローク種別ごとの描画方針（Strategy）。
@@ -126,6 +140,75 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         context.restore();
     };
 
+
+
+
+    const TIP_RATIO = { x: 0, y: 1 };
+
+    /** stroke_id ("ctrl-abc:1") から controller_id を取り出す */
+const getControllerId = (stroke: Stroke): string | null => {
+    const [controllerId] = stroke.stroke_id.split(":");
+    return controllerId || null;
+};
+
+/** controller ごとの最終更新時刻。一定時間動きがなければカーソルを消す */
+const lastSeenByController = new Map<string, number>();
+const lastPointKeyByController = new Map<string, string>();
+const CURSOR_TIMEOUT_MS = 3000;
+    /**
+     * 概要: 直近に描かれた点（＝ペン先）に目印を描く。
+     *
+     * 目的: 遠隔のスマホがいまどこを指しているかを Display 側で示す。
+     * ストロークと同じ worldToScreen を通すため、線と必ず同じ位置になる。
+     */
+const drawPenTips = (scene: Scene): void => {
+    // controller ごとに最後のストロークを集める
+    const latestByController = new Map<string, Stroke>();
+    forEachVisibleStroke(visibleStack(scene.history), (stroke) => {
+        const controllerId = getControllerId(stroke);
+        if (controllerId === null) return;
+        latestByController.set(controllerId, stroke);
+    });
+
+    for (const [controllerId, stroke] of latestByController) {
+        let lastWorldPoint: Parameters<Parameters<Stroke["forEachPoint"]>[0]>[0] | undefined;
+        stroke.forEachPoint((point) => { lastWorldPoint = point; });
+        if (lastWorldPoint === undefined) continue;
+
+        // 点が前回と変わっていれば「動いている」とみなして時刻を更新する
+    const key = `${lastWorldPoint.x},${lastWorldPoint.y}`;
+    if (lastPointKeyByController.get(controllerId) !== key) {
+        lastPointKeyByController.set(controllerId, key);
+        lastSeenByController.set(controllerId, Date.now());
+    }
+
+    // 一定時間更新がなければ描かない
+    const lastSeen = lastSeenByController.get(controllerId) ?? 0;
+    if (Date.now() - lastSeen > CURSOR_TIMEOUT_MS) continue;
+
+
+
+        const cursorImage =
+            stroke.style.kind === "ERASE_DEFAULT" ? eraserCursorImage : penCursorImage;
+        if (!cursorImage.complete || cursorImage.naturalWidth === 0) continue;
+
+        const screenPoint = worldToScreen(scene.camera, lastWorldPoint);
+
+        context.save();
+        context.globalCompositeOperation = "source-over";
+        context.drawImage(
+            cursorImage,
+            screenPoint.x - CURSOR_SIZE_PX * TIP_RATIO.x,
+            screenPoint.y - CURSOR_SIZE_PX * TIP_RATIO.y,
+            CURSOR_SIZE_PX,
+            CURSOR_SIZE_PX,
+        );
+        context.font = "bold 12px sans-serif";
+        context.fillStyle = colorForController(controllerId);
+        context.fillText(labelForController(controllerId), screenPoint.x + 4, screenPoint.y + 14);
+        context.restore();
+    }
+};
     /**
      * 概要: Scene 全体を描き直す。
      *
@@ -144,9 +227,12 @@ export const createCanvas2dRenderer = (canvas: HTMLCanvasElement): Renderer => {
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.restore();
-        for (const stroke of scene.strokes) {
+      
+        forEachVisibleStroke(visibleStack(scene.history), (stroke) => {
             drawStroke(scene, stroke);
-        }
+        });
+        drawPenTips(scene);
+
     };
 
     return {

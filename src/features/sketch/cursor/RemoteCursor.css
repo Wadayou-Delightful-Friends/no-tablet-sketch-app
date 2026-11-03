@@ -1,0 +1,15 @@
+.remote-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: red;
+  box-shadow: 0 0 8px red;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 10;
+  transition: opacity 150ms ease;
+  will-change: transform;
+}
